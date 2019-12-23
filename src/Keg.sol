@@ -52,7 +52,7 @@ contract DaiJoinLike {
 
 contract DSTokenLike {
     function balanceOf(address) public returns (uint);
-    function transferFrom(address,address,uint) public returns (bool);
+    function transferFrom(address, address, uint) public returns (bool);
 }
 
 contract Keg is LibNote {
@@ -86,7 +86,7 @@ contract Keg is LibNote {
     DSTokenLike public dai;
     address 	public vow;
 
-    mapping (address => uint) public mug;
+    mapping (address => uint) public mugs;
 
     constructor(address vat_, address join_, address dai_, address vow_) public {
         wards[msg.sender] = 1;
@@ -115,21 +115,21 @@ contract Keg is LibNote {
     	for (uint i = 0; i < bum.length; i++) {
     		require(bum[i] != address(0), "Keg/no-address-0");
     		//add balance wad to address in mug
-    		mug[bum[i]] = add(mug[bum[i]], wad[i]);
+    		mugs[bum[i]] = add(mugs[bum[i]], wad[i]);
     	}
     }
 
     //user withdraws all their compensation
     function chug() external {
-    	uint256 beer = mug[msg.sender];
-    	mug[msg.sender] = sub(mug[msg.sender], beer);
+    	uint256 beer = mugs[msg.sender];
+    	mugs[msg.sender] = sub(mugs[msg.sender], beer);
     	dai.transferFrom(address(this), msg.sender, beer);
     }
 
     //user withdraws some of their compensation
     function sip(uint wad) external {
-    	require(wad <= mug[msg.sender], "Keg/not-enough-earnings");
-    	mug[msg.sender] = sub(mug[msg.sender], wad);
+    	require(wad <= subs[msg.sender], "Keg/not-enough-earnings");
+    	mugs[msg.sender] = sub(mugs[msg.sender], wad);
     	dai.transferFrom(address(this), msg.sender, wad);
     }
 
@@ -137,11 +137,9 @@ contract Keg is LibNote {
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
     	else if (what == "join") join = DaiJoinLike(addr);
-    	else if (what == "dai") dai = DSTokenLike(addr); 
+    	else if (what == "dai") dai = DSTokenLike(addr);
+    	else if (what == "vow") vow = addr;
     	else revert("Keg/file-unrecognized-param");
     }
 
 }
-
-//Method 1: This contract has permission to call suck and then only the auth (chief) can call pour.
-//Method 2: A spell calls suck, and then calls the function in Keg to fund. This makes coding the spell complex.
