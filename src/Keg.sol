@@ -52,7 +52,7 @@ contract DaiJoinLike {
 
 contract DSTokenLike {
     function balanceOf(address) public returns (uint);
-    function transferFrom(address, address, uint) public returns (bool);
+    function move(address, address, uint) public;
 }
 
 contract Keg is LibNote {
@@ -123,14 +123,14 @@ contract Keg is LibNote {
     function chug() external {
     	uint256 beer = mugs[msg.sender];
     	mugs[msg.sender] = sub(mugs[msg.sender], beer);
-    	dai.transferFrom(address(this), msg.sender, beer);
+    	dai.move(address(this), msg.sender, beer);
     }
 
     //user withdraws some of their compensation
     function sip(uint wad) external {
-    	require(wad <= subs[msg.sender], "Keg/not-enough-earnings");
+    	require(wad <= mugs[msg.sender], "Keg/not-enough-earnings");
     	mugs[msg.sender] = sub(mugs[msg.sender], wad);
-    	dai.transferFrom(address(this), msg.sender, wad);
+    	dai.move(address(this), msg.sender, wad);
     }
 
     // --- Administration ---
