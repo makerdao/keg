@@ -14,16 +14,20 @@ contract KegTest is DSTest, DSMath {
 
     DssSpell spell;
 
-    address constant public DAI      = 0x78E8E1F59D80bE6700692E2aAA181eAb819FA269;
-    address constant public DAI_JOIN = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
-    address constant public MCD_VOW  = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
-    address constant public MCD_VAT  = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
-    address constant public USER     = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
+    address constant public DAI             = 0x78E8E1F59D80bE6700692E2aAA181eAb819FA269;
+    address constant public DAI_JOIN        = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
+    address constant public MCD_VOW         = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
+    address constant public MCD_VAT         = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
+    address constant public USER            = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
+    address constant public MCD_PAUSE_PROXY = 0x784e656E5Fa1F9CdCe4015539adA7fC31738Eba3;
 
     MKRAbstract       gov = MKRAbstract(0x8CA90018a8D759F68DD6de3d4fc58d37602aac78);
     DSChiefAbstract chief = DSChiefAbstract(0x8C67F07CBe3c0dBA5ECd5c1804341703458A2e8A);
     DSPauseAbstract pause = DSPauseAbstract(0xCE8B162F99eFB2dFc0A448A8D7Ed3218B5919ED1);
-    Keg               keg = Keg(0x66eFe121646FE881b1c950BFC855E506696fA773);
+    VatAbstract       vat = VatAbstract(MCD_VAT);
+    // Keg               keg = Keg();
+    Keg               keg = new Keg(MCD_VAT, DAI_JOIN, MCD_VOW);
+    GemAbstract       dai = GemAbstract(0x78E8E1F59D80bE6700692E2aAA181eAb819FA269);
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -36,7 +40,7 @@ contract KegTest is DSTest, DSMath {
 
     function setUp() public {
         hevm = Hevm(address(CHEAT_CODE));
-        spell = new DssSpell();
+        spell = new DssSpell(address(keg));
     }
 
     function vote() private {
@@ -61,23 +65,24 @@ contract KegTest is DSTest, DSMath {
         spell.cast();
     }
 
-    function testSpellIsCast() public {
-        // Test description
-        string memory description = new SpellAction().description();
-        assertTrue(bytes(description).length > 0);
+    // function testSpellIsCast() public {
+    //     // Test description
+    //     string memory description = new SpellAction().description();
+    //     assertTrue(bytes(description).length > 0);
 
-        vote();
-        scheduleWaitAndCast();
-        assertTrue(spell.done());
-    }
+    //     vote();
+    //     scheduleWaitAndCast();
+    //     assertTrue(spell.done());
+    //     assertEq(vat.wards(address(keg)), 5);
+    // }
 
 
-    function test_keg_deploy() public {
-        assertEq(address(keg.vat()),  MCD_VAT);
-        assertEq(address(keg.join()), DAI_JOIN);
-        assertEq(address(keg.dai()),  DAI);
-        assertEq(keg.vow(),  MCD_VOW);
-    }
+    // function test_keg_deploy() public {
+    //     assertEq(address(keg.vat()),  MCD_VAT);
+    //     assertEq(address(keg.join()), DAI_JOIN);
+    //     assertEq(address(keg.dai()),  DAI);
+    //     assertEq(keg.vow(),  MCD_VOW);
+    // }
 
     function test_brew() public {
         vote();
@@ -87,6 +92,8 @@ contract KegTest is DSTest, DSMath {
         users[0] = USER;
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1 ether;
+        assertEq(dai.balanceOf(address(keg)), 0);
         keg.brew(users, amts);
+        assertEq(dai.balanceOf(address(keg)), 1 ether);
     }
 }
