@@ -43,10 +43,10 @@ contract SpellAction {
     // Contract addresses pertaining to the SCD ecosystem can be found at:
     //     https://github.com/makerdao/sai#dai-v1-current-deployments
     Keg keg;
-    address constant public DAI      = 0xD657D4c62cBcC9E9EF90076A04dFe2bDBDed3328;
-    address constant public DAI_JOIN = 0xF4Acaab5815B970c98fbe1c86793299409B9C869; // Have not done rely/deny
-    address constant public MCD_VOW  = 0x0E53EA0217E77b06B924F141A1f433c51e0AE9C1;
-    address constant public MCD_VAT  = 0x91c46788E3DE271a559a8140F65817aF8F5832D4;
+    address constant public DAI      = 0x78E8E1F59D80bE6700692E2aAA181eAb819FA269;
+    address constant public DAI_JOIN = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
+    address constant public MCD_VOW  = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
+    address constant public MCD_VAT  = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -73,7 +73,7 @@ contract SpellAction {
 contract DssSpell {
 
     DSPauseAbstract  public pause =
-        DSPauseAbstract(0x8754E6ecb4fe68DaA5132c2886aB39297a5c7189);
+        DSPauseAbstract(0xCE8B162F99eFB2dFc0A448A8D7Ed3218B5919ED1);
     address          public action;
     bytes32          public tag;
     uint256          public eta;

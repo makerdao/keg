@@ -15,15 +15,15 @@ contract KegTest is DSTest, DSMath {
 
     DssSpell spell;
 
-    address constant public DAI      = 0xD657D4c62cBcC9E9EF90076A04dFe2bDBDed3328;
-    address constant public DAI_JOIN = 0xF4Acaab5815B970c98fbe1c86793299409B9C869; // Have not done rely/deny
-    address constant public MCD_VOW  = 0x0E53EA0217E77b06B924F141A1f433c51e0AE9C1;
-    address constant public MCD_VAT  = 0x91c46788E3DE271a559a8140F65817aF8F5832D4;
+    address constant public DAI      = 0x78E8E1F59D80bE6700692E2aAA181eAb819FA269;
+    address constant public DAI_JOIN = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
+    address constant public MCD_VOW  = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
+    address constant public MCD_VAT  = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
     address constant public USER     = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
 
-    MKRAbstract       gov = MKRAbstract(0xC978a2b299Ee2211dcA136fb81449D61a09C2eA1);
-    DSChiefAbstract chief = DSChiefAbstract(0x365d576606FAcF8E5348b7DcECaAC5eFe339b0F3);
-    DSPauseAbstract pause = DSPauseAbstract(0x8754E6ecb4fe68DaA5132c2886aB39297a5c7189);
+    MKRAbstract       gov = MKRAbstract(0x8CA90018a8D759F68DD6de3d4fc58d37602aac78);
+    DSChiefAbstract chief = DSChiefAbstract(0x8C67F07CBe3c0dBA5ECd5c1804341703458A2e8A);
+    DSPauseAbstract pause = DSPauseAbstract(0xCE8B162F99eFB2dFc0A448A8D7Ed3218B5919ED1);
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -80,14 +80,14 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.vow(),  MCD_VOW);
     }
 
-    function test_pour_brew() public {
-        vote();
-        scheduleWaitAndCast();
-        assertTrue(spell.done());
-        address[] memory users = new address[](1);
-        users[0] = USER;
-        uint256[] memory amts = new uint256[](1);
-        amts[0] = 1 ether;
-        keg.pourbrew(users, amts);
-    }
+    // function test_pour_brew() public {
+    //     vote();
+    //     scheduleWaitAndCast();
+    //     assertTrue(spell.done());
+    //     address[] memory users = new address[](1);
+    //     users[0] = USER;
+    //     uint256[] memory amts = new uint256[](1);
+    //     amts[0] = 1 ether;
+    //     keg.pourbrew(users, amts);
+    // }
 }
