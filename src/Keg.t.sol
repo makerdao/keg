@@ -3,6 +3,7 @@ pragma solidity >=0.5.12;
 import "ds-test/test.sol";
 
 import "./Keg.sol";
+import {DssSpell, SpellAction} from "./Keg-Spell.sol";
 
 contract Hevm { function warp(uint) public; }
 
@@ -10,11 +11,18 @@ contract KegTest is DSTest {
     Keg keg;
     Hevm hevm;
 
+    DssSpell spell;
+
     address constant public DAI      = 0xD657D4c62cBcC9E9EF90076A04dFe2bDBDed3328;
-    address constant public DAI_JOIN = 0xaC7c532eDdde7f7a025C62415959A07Ea9d83da8;
-    address constant public MCD_VOW  = 0x0F4Cbe6CBA918b7488C26E29d9ECd7368F38EA3b;
-    address constant public MCD_VAT  = 0xbA987bDB501d131f766fEe8180Da5d81b34b69d9;
+    address constant public DAI_JOIN = 0xF4Acaab5815B970c98fbe1c86793299409B9C869; // Have not done rely/deny
+    address constant public MCD_VOW  = 0x0E53EA0217E77b06B924F141A1f433c51e0AE9C1;
+    address constant public MCD_VAT  = 0x91c46788E3DE271a559a8140F65817aF8F5832D4;
     address constant public USER     = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
+
+    MKRAbstract              gov = MKRAbstract(0xC978a2b299Ee2211dcA136fb81449D61a09C2eA1);
+    DSChiefAbstract        chief = DSChiefAbstract(0xbBFFC76e94B34F72D96D054b31f6424249c1337d);
+
+
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -27,7 +35,30 @@ contract KegTest is DSTest {
 
     function setUp() public {
         hevm = Hevm(address(CHEAT_CODE));
+        spell = KOVAN_SPELL != address(0) ? DssSpell(KOVAN_SPELL) : new DssSpell();
         keg = new Keg(MCD_VAT, DAI_JOIN, DAI, MCD_VOW);
+    }
+
+    function vote() private {
+        if (chief.hat() != address(spell)) {
+            gov.approve(address(chief), uint256(-1));
+            chief.lock(sub(gov.balanceOf(address(this)), 1 ether));
+
+            assertTrue(!spell.done());
+
+            address[] memory yays = new address[](1);
+            yays[0] = address(spell);
+
+            chief.vote(yays);
+            chief.lift(address(spell));
+        }
+        assertEq(chief.hat(), address(spell));
+    }
+
+    function scheduleWaitAndCast() public {
+        spell.schedule();
+        hevm.warp(now + pause.delay());
+        spell.cast();
     }
 
     function test_keg_deploy() public {
@@ -37,8 +68,14 @@ contract KegTest is DSTest {
         assertEq(keg.vow(),  MCD_VOW);
     }
 
-    function test_brew() public {
-        address[] memory users = [USER];
-        keg.brew(users, [1 ether]);
+    function test_pour_brew() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+        address[] memory users = new address[](1);
+        users[0] = USER;
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1 ether;
+        keg.pourbrew(users, amts);
     }
 }
