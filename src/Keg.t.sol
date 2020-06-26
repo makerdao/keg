@@ -9,7 +9,9 @@ contract KegTest is DSTest {
     Keg keg;
 
     function setUp() public {
+
         DSToken dai = new DSToken(bytes32("DAI"));
+        //address vow = ;
         address temp = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         keg = new Keg(temp, temp, address(dai), temp);
     }
