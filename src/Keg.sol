@@ -59,8 +59,8 @@ contract Keg is LibNote {
 
 	// --- Auth ---
     mapping (address => uint) public wards;
-    function rely(address usr) external note auth { wards[usr] = 1; }
-    function deny(address usr) external note auth { wards[usr] = 0; }
+    function rely(address usr) external note auth { wards[usr] = 1; emit NewBrewMaster(usr); }
+    function deny(address usr) external note auth { wards[usr] = 0; emit RetiredBrewMaster(usr); }
     modifier auth {
         require(wards[msg.sender] == 1, "Keg/not-authorized");
         _;
@@ -94,11 +94,13 @@ contract Keg is LibNote {
     mapping (address => address) public buds;   //original -> delegate
 
     // --- Events ---
+    event NewBrewMaster(address brewmaster);
+    event RetiredBrewMaster(address brewmaster);
+    event BrewBeer(uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
     event NoNewFriends(address indexed owner, address delegate);
     event JustASip(address bud, address pal, uint256 beer);
     event DownTheHatch(address bud, address pal, uint256 beer);
-    event BrewBeer(uint256 beer);
 
     constructor(address vat_, address join_, address dai_, address vow_) public {
         wards[msg.sender] = 1;
@@ -182,5 +184,4 @@ contract Keg is LibNote {
     	else if (what == "vow") vow = addr;
     	else revert("Keg/file-unrecognized-param");
     }
-
 }
