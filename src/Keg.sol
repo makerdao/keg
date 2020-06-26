@@ -1,4 +1,4 @@
-pragma solidity >=0.5.12;
+pragma solidity >=0.5.15;
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -86,7 +86,12 @@ contract Keg is LibNote {
     DSTokenLike public dai;
     address 	public vow;
 
+    //accounting for tracking users balances
     mapping (address => uint) public mugs;
+
+    //two-way mapping tracks delegates
+    mapping (address => address) public pals;   //delegate -> original
+    mapping (address => address) public buds;   //original -> delegate
 
     constructor(address vat_, address join_, address dai_, address vow_) public {
         wards[msg.sender] = 1;
@@ -97,9 +102,8 @@ contract Keg is LibNote {
     }
 
     //credit compensation to payees
-    //maybe split this function into `brew` that sucks into the keg and `pour` that fills mugs
     //could also merge for loops by doing accounting while summating beer, but weird logic to account first before suck
-    function pourbrew(address[] calldata bum, uint[] calldata wad) external note auth stoppable {
+    function brew(address[] calldata bum, uint[] calldata wad) external note auth stoppable {
 
     	uint256 beer = 0;
 
@@ -108,6 +112,7 @@ contract Keg is LibNote {
     		beer = add(beer, wad[i]);
     	}
 
+        //last param beer is a rad
     	vat.suck(address(vow), address(this), beer);
     	join.exit(address(this), beer);
     	require(dai.balanceOf(address(this)) == beer, "Keg/invalid-dai-balance");
@@ -119,16 +124,35 @@ contract Keg is LibNote {
     	}
     }
 
+    //user delegates compensation to another address
+    function pass(address addr) external {
+        //original addr -> delegated addr
+        buds[msg.sender] = addr;
+        //delegated addr -> original addr
+        pals[addr] = msg.sender;
+    }
+
+    //user revokes delegation
+    //I think this may be an overloaded term, consider renaming to `grab`
+    function yank() external {
+
+    }
+
     //user withdraws all their compensation
     function chug() external {
-    	uint256 beer = mugs[msg.sender];
-    	mugs[msg.sender] = sub(mugs[msg.sender], beer);
-    	dai.move(address(this), msg.sender, beer);
+        address bum;
+        uint256 beer;
+        //whose tab are we drinking on
+        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : msg.sender;
+        beer = mugs[bum];
+        require(beer <= 0, "Keg/too-thirsty-not-enough-beer");
+        mugs[bum] = sub(mugs[bum], beer);
+        dai.move(address(this), msg.sender, beer);
     }
 
     //user withdraws some of their compensation
     function sip(uint wad) external {
-    	require(wad <= mugs[msg.sender], "Keg/not-enough-earnings");
+    	require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
     	mugs[msg.sender] = sub(mugs[msg.sender], wad);
     	dai.move(address(this), msg.sender, wad);
     }
