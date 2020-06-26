@@ -63,9 +63,9 @@ contract SpellAction {
     uint256 constant public ZERO_PCT_RATE = 1000000000000000000000000000;
     uint256 constant public ONE_PCT_RATE  = 1000000000315522921573372069;
 
-    function execute() external {
+    function execute(address keg) external {
         // Rely on Keg contract
-        VatAbstract(MCD_VAT).rely(MCD_KEG);
+        VatAbstract(MCD_VAT).rely(keg);
     }
 }
 
@@ -80,8 +80,8 @@ contract DssSpell {
     uint256          public expiration;
     bool             public done;
 
-    constructor() public {
-        sig = abi.encodeWithSignature("execute()");
+    constructor(address keg) public {
+        sig = abi.encodeWithSignature("execute(address)", keg);
         action = address(new SpellAction());
         bytes32 _tag;
         address _action = action;

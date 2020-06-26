@@ -48,6 +48,7 @@ contract VatLike {
 }
 
 contract DaiJoinLike {
+    function dai() external view returns (address);
 	function exit(address, uint) external;
 }
 
@@ -76,6 +77,10 @@ contract Keg is LibNote {
         require((z = x - y) <= x);
     }
 
+    function mul(uint x, uint y) internal pure returns (uint z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+
     // --- Stop ---
     uint256 public stopped;
     function stop() external note auth { stopped = 1; }
@@ -86,6 +91,8 @@ contract Keg is LibNote {
     DaiJoinLike public join;
     DSTokenLike public dai;
     address 	public vow;
+
+    uint256 constant RAY = 10 ** 27;
 
     //accounting for tracking users balances
     mapping (address => uint) public mugs;
@@ -100,11 +107,11 @@ contract Keg is LibNote {
     event JustASip(address bud, address pal, uint256 beer);
     event DownTheHatch(address bud, address pal, uint256 beer);
 
-    constructor(address vat_, address join_, address dai_, address vow_) public {
+    constructor(address vat_, address join_, address vow_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         join = DaiJoinLike(join_);
-        dai = DSTokenLike(dai_);
+        dai = DSTokenLike(join.dai());
         vow = vow_;
         vat.hope(address(join));
     }
@@ -117,16 +124,15 @@ contract Keg is LibNote {
 
     	require(bum.length == wad.length, "Keg/unequal-payees-and-amounts");
     	for (uint i = 0; i < wad.length; i++) {
+            require(bum[i] != address(0), "Keg/no-address-0");
     		beer = add(beer, wad[i]);
     	}
 
         //last param beer is a rad
-    	vat.suck(address(vow), address(this), beer);
+    	vat.suck(address(vow), address(this), mul(beer, RAY));
     	join.exit(address(this), beer);
-    	require(dai.balanceOf(address(this)) == beer, "Keg/invalid-dai-balance");
 
     	for (uint i = 0; i < bum.length; i++) {
-    		require(bum[i] != address(0), "Keg/no-address-0");
     		//add balance wad to address in mug
     		mugs[bum[i]] = add(mugs[bum[i]], wad[i]);
     	}
