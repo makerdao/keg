@@ -98,7 +98,7 @@ contract Keg is LibNote {
     event NoNewFriends(address indexed owner, address delegate);
     event JustASip(address bud, address pal, uint256 beer);
     event DownTheHatch(address bud, address pal, uint256 beer);
-    ecent BrewBeer(uint256 beer);
+    event BrewBeer(uint256 beer);
 
     constructor(address vat_, address join_, address dai_, address vow_) public {
         wards[msg.sender] = 1;
