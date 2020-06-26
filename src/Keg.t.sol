@@ -1,13 +1,15 @@
 pragma solidity >=0.5.12;
 
 import "ds-test/test.sol";
+import "ds-math/math.sol";
+import "lib/dss-interfaces/src/Interfaces.sol";
 
 import "./Keg.sol";
 import {DssSpell, SpellAction} from "./Keg-Spell.sol";
 
 contract Hevm { function warp(uint) public; }
 
-contract KegTest is DSTest {
+contract KegTest is DSTest, DSMath {
     Keg keg;
     Hevm hevm;
 
@@ -19,10 +21,9 @@ contract KegTest is DSTest {
     address constant public MCD_VAT  = 0x91c46788E3DE271a559a8140F65817aF8F5832D4;
     address constant public USER     = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
 
-    MKRAbstract              gov = MKRAbstract(0xC978a2b299Ee2211dcA136fb81449D61a09C2eA1);
-    DSChiefAbstract        chief = DSChiefAbstract(0xbBFFC76e94B34F72D96D054b31f6424249c1337d);
-
-
+    MKRAbstract       gov = MKRAbstract(0xC978a2b299Ee2211dcA136fb81449D61a09C2eA1);
+    DSChiefAbstract chief = DSChiefAbstract(0x365d576606FAcF8E5348b7DcECaAC5eFe339b0F3);
+    DSPauseAbstract pause = DSPauseAbstract(0x8754E6ecb4fe68DaA5132c2886aB39297a5c7189);
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -35,7 +36,7 @@ contract KegTest is DSTest {
 
     function setUp() public {
         hevm = Hevm(address(CHEAT_CODE));
-        spell = KOVAN_SPELL != address(0) ? DssSpell(KOVAN_SPELL) : new DssSpell();
+        spell = new DssSpell();
         keg = new Keg(MCD_VAT, DAI_JOIN, DAI, MCD_VOW);
     }
 
@@ -60,6 +61,17 @@ contract KegTest is DSTest {
         hevm.warp(now + pause.delay());
         spell.cast();
     }
+
+    function testSpellIsCast() public {
+        // Test description
+        string memory description = new SpellAction().description();
+        assertTrue(bytes(description).length > 0);
+
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+    }
+
 
     function test_keg_deploy() public {
         assertEq(address(keg.vat()),  MCD_VAT);

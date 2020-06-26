@@ -66,7 +66,7 @@ contract SpellAction {
     function execute() external {
         keg = new Keg(MCD_VAT, DAI_JOIN, DAI, MCD_VOW);
         // Allow KNC-A Join to modify Vat registry
-        VatAbstract(MCD_VAT).rely(MCD_KEG);
+        VatAbstract(MCD_VAT).rely(address(keg));
     }
 }
 
