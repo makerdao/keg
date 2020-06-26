@@ -93,6 +93,12 @@ contract Keg is LibNote {
     mapping (address => address) public pals;   //delegate -> original
     mapping (address => address) public buds;   //original -> delegate
 
+    // --- Events ---
+    event DelegateUpdated(address indexed owner, address delegate);
+    event DelegateRemoved(address indexed owner, address delegate);
+    event JustASip(address bud, address pal, uint256 beer);
+    event DownTheHatch(address bud, address pal, uint256 beer);
+
     constructor(address vat_, address join_, address dai_, address vow_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
@@ -125,17 +131,21 @@ contract Keg is LibNote {
     }
 
     //user delegates compensation to another address
-    function pass(address addr) external {
+    function pass(address bud) external {
         //original addr -> delegated addr
-        buds[msg.sender] = addr;
+        buds[msg.sender] = bud;
         //delegated addr -> original addr
-        pals[addr] = msg.sender;
+        pals[bud] = msg.sender;
+        emit DelegateUpdated(msg.sender, bud);
     }
 
     //user revokes delegation
-    //I think this may be an overloaded term, consider renaming to `grab`
     function yank() external {
-
+        address bud;
+        bud = buds[msg.sender];
+        pals[bud] = address(0);
+        buds[msg.sender] = address(0);
+        emit DelegateRemoved(msg.sender, bud);
     }
 
     //user withdraws all their compensation
@@ -143,18 +153,23 @@ contract Keg is LibNote {
         address bum;
         uint256 beer;
         //whose tab are we drinking on
-        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : msg.sender;
+        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
         beer = mugs[bum];
-        require(beer <= 0, "Keg/too-thirsty-not-enough-beer");
+        require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], beer);
         dai.move(address(this), msg.sender, beer);
+        emit DownTheHatch(bum, msg.sender, beer);
     }
 
     //user withdraws some of their compensation
-    function sip(uint wad) external {
-    	require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
-    	mugs[msg.sender] = sub(mugs[msg.sender], wad);
-    	dai.move(address(this), msg.sender, wad);
+    function sip(uint256 beer) external {
+        address bum;
+        //whose tab are we drinking on
+        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+    	require(beer <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
+    	mugs[bum] = sub(mugs[bum], beer);
+    	dai.move(address(this), msg.sender, beer);
+        emit JustASip(bum, msg.sender, beer);
     }
 
     // --- Administration ---
