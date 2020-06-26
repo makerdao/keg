@@ -47,6 +47,7 @@ contract SpellAction {
     address constant public DAI_JOIN = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
     address constant public MCD_VOW  = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
     address constant public MCD_VAT  = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
+    address constant public MCD_KEG  = 0x66eFe121646FE881b1c950BFC855E506696fA773;
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -64,9 +65,8 @@ contract SpellAction {
     uint256 constant public ONE_PCT_RATE  = 1000000000315522921573372069;
 
     function execute() external {
-        keg = new Keg(MCD_VAT, DAI_JOIN, DAI, MCD_VOW);
         // Allow KNC-A Join to modify Vat registry
-        VatAbstract(MCD_VAT).rely(address(keg));
+        VatAbstract(MCD_VAT).rely(MCD_KEG);
     }
 }
 
