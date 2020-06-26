@@ -37,8 +37,8 @@ contract KegTest is DSTest {
         assertEq(keg.vow(),  MCD_VOW);
     }
 
-    function test_pour_brew() public {
+    function test_brew() public {
         address[] memory users = [USER];
-        keg.pourbrew(users, [1 ether]);
+        keg.brew(users, [1 ether]);
     }
 }
