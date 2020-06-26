@@ -44,6 +44,7 @@ contract LibNote {
 
 contract VatLike {
 	function suck(address, address, uint) external;
+    function hope(address) external;
 }
 
 contract DaiJoinLike {
@@ -105,6 +106,7 @@ contract Keg is LibNote {
         join = DaiJoinLike(join_);
         dai = DSTokenLike(dai_);
         vow = vow_;
+        vat.hope(address(join));
     }
 
     //credit compensation to payees

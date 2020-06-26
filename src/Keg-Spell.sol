@@ -34,7 +34,7 @@ contract MedianAbstract {
 contract SpellAction {
     // Provides a descriptive tag for bot consumption
     // This should be modified weekly to provide a summary of the actions
-    string constant public description = "Kovan Spell for KNC and ZRX";
+    string constant public description = "Rely spell for Keg";
 
     // The contracts in this list should correspond to MCD core contracts, verify
     //  against the current release list at:
@@ -42,12 +42,11 @@ contract SpellAction {
     //
     // Contract addresses pertaining to the SCD ecosystem can be found at:
     //     https://github.com/makerdao/sai#dai-v1-current-deployments
-    Keg keg;
     address constant public DAI      = 0x78E8E1F59D80bE6700692E2aAA181eAb819FA269;
     address constant public DAI_JOIN = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
     address constant public MCD_VOW  = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
     address constant public MCD_VAT  = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
-    address constant public MCD_KEG  = 0x66eFe121646FE881b1c950BFC855E506696fA773;
+    address constant public MCD_KEG  = 0xA4D26B2C790D11b9d5F94A795AEb7983B216cC1e;
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -65,7 +64,7 @@ contract SpellAction {
     uint256 constant public ONE_PCT_RATE  = 1000000000315522921573372069;
 
     function execute() external {
-        // Allow KNC-A Join to modify Vat registry
+        // Rely on Keg contract
         VatAbstract(MCD_VAT).rely(MCD_KEG);
     }
 }
