@@ -94,10 +94,11 @@ contract Keg is LibNote {
     mapping (address => address) public buds;   //original -> delegate
 
     // --- Events ---
-    event DelegateUpdated(address indexed owner, address delegate);
-    event DelegateRemoved(address indexed owner, address delegate);
+    event DrinkingBuddy(address indexed owner, address delegate);
+    event NoNewFriends(address indexed owner, address delegate);
     event JustASip(address bud, address pal, uint256 beer);
     event DownTheHatch(address bud, address pal, uint256 beer);
+    ecent BrewBeer(uint256 beer);
 
     constructor(address vat_, address join_, address dai_, address vow_) public {
         wards[msg.sender] = 1;
@@ -128,6 +129,7 @@ contract Keg is LibNote {
     		//add balance wad to address in mug
     		mugs[bum[i]] = add(mugs[bum[i]], wad[i]);
     	}
+        emit BrewBeer(beer);
     }
 
     //user delegates compensation to another address
@@ -136,7 +138,7 @@ contract Keg is LibNote {
         buds[msg.sender] = bud;
         //delegated addr -> original addr
         pals[bud] = msg.sender;
-        emit DelegateUpdated(msg.sender, bud);
+        emit DrinkingBuddy(msg.sender, bud);
     }
 
     //user revokes delegation
@@ -145,7 +147,7 @@ contract Keg is LibNote {
         bud = buds[msg.sender];
         pals[bud] = address(0);
         buds[msg.sender] = address(0);
-        emit DelegateRemoved(msg.sender, bud);
+        emit NoNewFriends(msg.sender, bud);
     }
 
     //user withdraws all their compensation
@@ -166,9 +168,9 @@ contract Keg is LibNote {
         address bum;
         //whose tab are we drinking on
         pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
-    	require(beer <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
-    	mugs[bum] = sub(mugs[bum], beer);
-    	dai.move(address(this), msg.sender, beer);
+        require(beer <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
+        mugs[bum] = sub(mugs[bum], beer);
+        dai.move(address(this), msg.sender, beer);
         emit JustASip(bum, msg.sender, beer);
     }
 
