@@ -45,19 +45,13 @@ contract LibNote {
 contract VatLike {
 	function suck(address, address, uint) external;
     function hope(address) external;
+    function move(address, address, uint) external;
 }
 
 contract DaiJoinLike {
     function dai() external view returns (address);
     function join(address, uint) external;
 	function exit(address, uint) external;
-}
-
-contract DSTokenLike {
-    function approve(address) public returns (bool);
-    function allowance(address, address) public returns (uint);
-    function balanceOf(address) public returns (uint);
-    function move(address, address, uint) public;
 }
 
 contract Keg is LibNote {
@@ -92,7 +86,6 @@ contract Keg is LibNote {
 
     VatLike 	public vat;
     DaiJoinLike public join;
-    DSTokenLike public dai;
     address 	public vow;
 
     uint256 constant RAY = 10 ** 27;
@@ -119,7 +112,6 @@ contract Keg is LibNote {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         join = DaiJoinLike(join_);
-        dai = DSTokenLike(join.dai());
         vow = vow_;
         vat.hope(address(join));
     }
@@ -136,22 +128,25 @@ contract Keg is LibNote {
             emit MugFilled(bums[i], wad[i]);
     	}
     	vat.suck(address(vow), address(this), mul(beer, RAY));
-        emit BrewedBeer(beer);
+        emit BrewBeer(beer);
     }
 
+    /*
+    //fork out later
     function pour(address[] calldata bums, uint[] calldata wad) external note stoppable {
         uint256 beer = 0;
+        require(bums.length != uint256(0));
         require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
         for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
             beer = add(beer, wad[i]);
+            emit MugFilled(bums[i], wad[i]);
         }
-        dai.move(msg.sender, address(this), beer);
-        if (dai.allowance(address(this), address(join)) != uint(-1)) require(dai.approve(address(join)));
-        join.join(address(this), beer);
-        emit PouredBeer(msg.sender, beer);
+        vat.move(msg.sender, address(this), mul(beer, RAY));
+        emit PourBeer(msg.sender, beer);
     }
+    */
 
     //user delegates compensation to another address
     function pass(address bud) external {
@@ -176,26 +171,21 @@ contract Keg is LibNote {
 
     //user withdraws all their compensation
     function chug() external {
-        address bum;
         uint256 beer;
         //whose tab are we drinking on
-        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
         beer = mugs[bum];
         require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        mugs[bum] = sub(mugs[bum], beer);
-        require(mugs[bum] == uint(0));
-        join.exit(msg.sender, beer);
+        join.exit(msg.sender, mugs[bum]);
         emit DownTheHatch(bum, msg.sender, beer);
+        mugs[bum] = 0;
     }
 
     //user withdraws some of their compensation
     function sip(uint256 beer) external {
-        address bum;
         //whose tab are we drinking on
-        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
-        require(beer <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
+        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
         mugs[bum] = sub(mugs[bum], beer);
-        require(mugs[bum] >= uint(0));
         join.exit(msg.sender, beer);
         emit JustASip(bum, msg.sender, beer);
     }
@@ -204,7 +194,6 @@ contract Keg is LibNote {
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
     	else if (what == "join") join = DaiJoinLike(addr);
-        else if (what == "dai") dai = DSTokenLike(addr);
     	else if (what == "vow") vow = addr;
     	else revert("Keg/file-unrecognized-param");
     }

@@ -137,12 +137,11 @@ contract KegTest is DSTest, DSMath {
         users[0] = USER_1;
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1.5 ether;
-        assertEq(dai.balanceOf(address(keg)), 0);
+        assertEq(vat.dai(address(keg)), 0);
 
         keg.brew(users, amts);
 
         assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
-        assertEq(dai.balanceOf(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
         keg.chug();
@@ -161,10 +160,8 @@ contract KegTest is DSTest, DSMath {
         users[0] = USER_2;
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1.5 ether;
-        assertEq(dai.balanceOf(address(keg)), 0);
 
         keg.brew(users, amts);
-
         keg.chug();
     }
 
@@ -182,7 +179,7 @@ contract KegTest is DSTest, DSMath {
         keg.brew(users, amts);
 
         assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
-        assertEq(dai.balanceOf(USER_1), 0);
+        assertEq(vat.dai(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
         keg.sip(1 ether);
@@ -204,6 +201,10 @@ contract KegTest is DSTest, DSMath {
         keg.brew(users, amts);
 
         keg.sip(1.5 ether);
+
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(dai.balanceOf(USER_1), 1.5 ether);
+        assertEq(keg.mugs(USER_1), 0);
     }
 
     function testFail_sip_too_big() public {
@@ -264,5 +265,9 @@ contract KegTest is DSTest, DSMath {
         //keg.chug()
 
         assertTrue(false);  //temp to pass test
+    }
+
+    function test_chug_as_bud() public {
+        //how does one become a different user - hevm hack?
     }
 }
