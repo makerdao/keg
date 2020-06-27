@@ -171,10 +171,9 @@ contract Keg is LibNote {
 
     //user withdraws all their compensation
     function chug() external {
-        uint256 beer;
         //whose tab are we drinking on
         address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        beer = mugs[bum];
+        uint256 beer = mugs[bum];
         require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
         join.exit(msg.sender, mugs[bum]);
         emit DownTheHatch(bum, msg.sender, beer);
