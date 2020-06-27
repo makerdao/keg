@@ -126,7 +126,7 @@ contract Keg is LibNote {
     //credit compensation to payees
     function brew(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
     	uint256 beer = 0;
-
+        require(bums.length != uint256(0));
     	require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
     	for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
@@ -153,6 +153,7 @@ contract Keg is LibNote {
 
     //user delegates compensation to another address
     function pass(address bud) external {
+        require(bud != msg.sender, "Keg/cannot_delegate_to_self");
         require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
         //remove existing delegate
         if (buds[msg.sender] != address(0)) yank();
@@ -180,6 +181,7 @@ contract Keg is LibNote {
         beer = mugs[bum];
         require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], beer);
+        require(mugs[bum] == uint(0));
         join.exit(msg.sender, beer);
         emit DownTheHatch(bum, msg.sender, beer);
     }
@@ -191,6 +193,7 @@ contract Keg is LibNote {
         pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
         require(beer <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], beer);
+        require(mugs[bum] >= uint(0));
         join.exit(msg.sender, beer);
         emit JustASip(bum, msg.sender, beer);
     }
