@@ -48,10 +48,14 @@ contract VatLike {
 }
 
 contract DaiJoinLike {
+    function dai() external view returns (address);
+    function join(address, uint) external;
 	function exit(address, uint) external;
 }
 
 contract DSTokenLike {
+    function approve(address) public returns (bool);
+    function allowance(address, address) public returns (uint);
     function balanceOf(address) public returns (uint);
     function move(address, address, uint) public;
 }
@@ -88,6 +92,7 @@ contract Keg is LibNote {
 
     VatLike 	public vat;
     DaiJoinLike public join;
+    DSTokenLike public dai;
     address 	public vow;
 
     uint256 constant RAY = 10 ** 27;
@@ -103,6 +108,7 @@ contract Keg is LibNote {
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
     event BrewBeer(uint256 beer);
+    event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
     event NoNewFriends(address indexed owner, address delegate);
     event JustASip(address bud, address pal, uint256 beer);
@@ -112,27 +118,37 @@ contract Keg is LibNote {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         join = DaiJoinLike(join_);
+        dai = DSTokenLike(join.dai());
         vow = vow_;
         vat.hope(address(join));
     }
 
     //credit compensation to payees
-    //could also merge for loops by doing accounting while summating beer, but weird logic to account first before suck
-    function brew(address[] calldata bum, uint[] calldata wad) external note auth stoppable {
-
+    function brew(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
     	uint256 beer = 0;
 
-    	require(bum.length == wad.length, "Keg/unequal-payees-and-amounts");
+    	require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
     	for (uint i = 0; i < wad.length; i++) {
-            require(bum[i] != address(0), "Keg/no-address-0");
-            mugs[bum[i]] = add(mugs[bum[i]], wad[i]);
+            require(bums[i] != address(0), "Keg/no-address-0");
+            mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
             beer = add(beer, wad[i]);
     	}
-
-        //last param beer is a rad
     	vat.suck(address(vow), address(this), mul(beer, RAY));
-
         emit BrewBeer(beer);
+    }
+
+    function pour(address[] calldata bums, uint[] calldata wad) external note stoppable {
+        uint256 beer = 0;
+        require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
+        for (uint i = 0; i < wad.length; i++) {
+            require(bums[i] != address(0), "Keg/no-address-0");
+            mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
+            beer = add(beer, wad[i]);
+        }
+        dai.move(msg.sender, address(this), beer);
+        if (dai.allowance(address(this), address(join)) != uint(-1)) require(dai.approve(address(join)));
+        join.join(address(this), beer);
+        emit PourBeer(msg.sender, beer);
     }
 
     //user delegates compensation to another address
@@ -181,6 +197,7 @@ contract Keg is LibNote {
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
     	else if (what == "join") join = DaiJoinLike(addr);
+        else if (what == "dai") dai = DSTokenLike(addr);
     	else if (what == "vow") vow = addr;
     	else revert("Keg/file-unrecognized-param");
     }
