@@ -78,7 +78,6 @@ contract KegTest is DSTest, DSMath {
         assertEq(vat.can(address(keg), DAI_JOIN), 1);
     }
 
-
     function test_keg_deploy() public {
         assertEq(address(keg.vat()),  MCD_VAT);
         assertEq(address(keg.join()), DAI_JOIN);
@@ -90,25 +89,50 @@ contract KegTest is DSTest, DSMath {
         scheduleWaitAndCast();
         assertTrue(spell.done());
 
+        uint wad = 10 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(keg.keg(), 0);
+        keg.brew(wad);
+        assertEq(vat.dai(address(keg)), wad * RAY);
+        assertEq(keg.keg(), wad);
+    }
+
+    function test_pour() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        uint wad = 10 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(keg.keg(), 0);
+        keg.brew(wad);
+        assertEq(vat.dai(address(keg)), wad * RAY); // 10 DAI
+        assertEq(keg.keg(), wad); // Keg = 10
+
         address[] memory users = new address[](2);
         users[0] = USER_1;
         users[1] = USER_2;
         uint256[] memory amts = new uint256[](2);
         amts[0] = 1.5 ether;
-        amts[1] = 2.75 ether;
+        amts[1] = 4.5 ether;
 
-        assertEq(vat.dai(address(keg)), 0);
+        assertEq(keg.beer(), 0);
         assertEq(keg.mugs(USER_1), 0);
         assertEq(keg.mugs(USER_2), 0);
-
-        keg.brew(users, amts);
-
-        assertEq(vat.dai(address(keg)), (amts[0] + amts[1]) * 10 ** 27);
-        assertEq(keg.mugs(USER_1), amts[0]);
-        assertEq(keg.mugs(USER_2), amts[1]);
+        keg.pour(users, amts);
+        assertEq(keg.beer(), amts[0] + amts[1]); // Beer = 6
+        assertEq(keg.mugs(USER_1), amts[0]);     // Mug1 = 1.5
+        assertEq(keg.mugs(USER_2), amts[1]);     // Mug2 = 4.5
+        assertEq(keg.keg(), wad - keg.beer());   // Keg  = 4
+        assertEq(
+            vat.dai(address(keg)),
+            (keg.beer() + keg.keg()) * RAY // Beer + Keg = 10 DAI
+        );
     }
 
-    function testFail_brew_unequal_length() public {
+    function testFail_pour_unequal_length() public {
         vote();
         scheduleWaitAndCast();
         assertTrue(spell.done());
@@ -119,16 +143,16 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1.5 ether;
 
-        keg.brew(users, amts);
+        keg.pour(users, amts);
     }
 
-    function testFail_brew_zero_length() public {
+    function testFail_pour_zero_length() public {
         address[] memory users = new address[](0);
         uint256[] memory amts = new uint256[](0);
-        keg.brew(users, amts);
+        keg.pour(users, amts);
     }
 
-    function test_chug() public {
+    function testFail_pour_keg_not_full_enough() public {
         vote();
         scheduleWaitAndCast();
         assertTrue(spell.done());
@@ -144,14 +168,21 @@ contract KegTest is DSTest, DSMath {
         assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
         assertEq(keg.mugs(USER_1), amts[0]);
 
-        keg.chug();
+        address[] memory users = new address[](2);
+        users[0] = USER_1;
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 5.5 ether;
+        amts[1] = 6.5 ether;
 
-        assertEq(vat.dai(address(keg)), 0);
-        assertEq(dai.balanceOf(USER_1), amts[0]);
+        assertEq(keg.beer(), 0);
         assertEq(keg.mugs(USER_1), 0);
+        assertEq(keg.mugs(USER_2), 0);
+        assertTrue((amts[0] + amts[1]) > keg.keg()); // Fail condition
+        keg.pour(users, amts);
     }
 
-    function testFail_zero_beer_chug() public {
+    function test_chug() public {
         vote();
         scheduleWaitAndCast();
         assertTrue(spell.done());
@@ -165,14 +196,13 @@ contract KegTest is DSTest, DSMath {
         keg.chug();
     }
 
-    function test_sip() public {
-        vote();
-        scheduleWaitAndCast();
-        assertTrue(spell.done());
+        assertEq(vat.dai(address(keg)), wad * RAY); // 10 DAI
+        assertEq(keg.keg(), wad); // Keg = 10
 
-        address[] memory users = new address[](1);
+        address[] memory users = new address[](2);
         users[0] = USER_1;
-        uint256[] memory amts = new uint256[](1);
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](2);
         amts[0] = 1.5 ether;
         assertEq(dai.balanceOf(address(keg)), 0);
 
@@ -182,23 +212,58 @@ contract KegTest is DSTest, DSMath {
         assertEq(vat.dai(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
-        keg.sip(1 ether);
+        assertEq(keg.beer(), 0);
+        assertEq(keg.mugs(USER_1), 0);
+        assertEq(keg.mugs(USER_2), 0);
 
-        assertEq(vat.dai(address(keg)), (amts[0] - 1 ether) * 10 ** 27);
-        assertEq(dai.balanceOf(USER_1), 1 ether);
-        assertEq(keg.mugs(USER_1), amts[0] - 1 ether);
+        keg.pour(users, amts);
+
+        assertEq(keg.beer(), amts[0] + amts[1]); // Beer = 6
+        assertEq(keg.mugs(USER_1), amts[0]);     // Mug1 = 1.5
+        assertEq(keg.mugs(USER_2), amts[1]);     // Mug2 = 4.5
+        assertEq(keg.keg(), wad - keg.beer());   // Keg  = 4
+
+        assertEq(
+            vat.dai(address(keg)),
+            (keg.beer() + keg.keg()) * RAY // Beer + Keg = 10 DAI
+        );
+        assertEq(vat.dai(USER_1), 0);
+        assertEq(vat.dai(USER_2), 0);
+        
+        keg.chug(); // msg.sender == USER_1
+
+        assertEq(keg.beer(), amts[1]);       // Beer = 4.5
+        assertEq(keg.mugs(USER_1), 0);       // Mug1 = 0
+        assertEq(keg.mugs(USER_2), amts[1]); // Mug2 = 4.5
+        assertEq(keg.keg(), 4 ether);        // Keg  = 4
+        assertEq(
+            vat.dai(address(keg)),
+            (keg.beer() + keg.keg()) * RAY // Beer + Keg = 8.5 DAI
+        );
+        assertEq(vat.dai(USER_1), 1.5 ether * RAY); // 1.5 DAI
+        assertEq(vat.dai(USER_2), 0);
     }
 
-    function test_sip_all() public {
+    function test_sip() public {
         vote();
         scheduleWaitAndCast();
         assertTrue(spell.done());
 
-        address[] memory users = new address[](1);
+        uint wad = 10 ether; // 10 DAI brewed
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(keg.keg(), 0);
+
+        keg.brew(wad);
+
+        assertEq(vat.dai(address(keg)), wad * RAY);
+        assertEq(keg.keg(), wad); // Keg = 10
+
+        address[] memory users = new address[](2);
         users[0] = USER_1;
-        uint256[] memory amts = new uint256[](1);
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](2);
         amts[0] = 1.5 ether;
-        keg.brew(users, amts);
+        amts[1] = 4.5 ether;
 
         keg.sip(1.5 ether);
 
@@ -212,13 +277,41 @@ contract KegTest is DSTest, DSMath {
         scheduleWaitAndCast();
         assertTrue(spell.done());
 
-        address[] memory users = new address[](1);
-        users[0] = USER_1;
-        uint256[] memory amts = new uint256[](1);
-        amts[0] = 1.5 ether;
-        keg.brew(users, amts);
+        uint wad = 10 ether; // 10 DAI brewed
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(keg.keg(), 0);
 
-        keg.sip(2 ether);
+        keg.brew(wad);
+
+        assertEq(vat.dai(address(keg)), wad * RAY);
+        assertEq(keg.keg(), wad); // Keg = 10
+
+        address[] memory users = new address[](2);
+        users[0] = USER_1;
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 1.5 ether;
+        amts[1] = 4.5 ether;
+
+        assertEq(keg.beer(), 0);
+        assertEq(keg.mugs(USER_1), 0);
+        assertEq(keg.mugs(USER_2), 0);
+
+        keg.pour(users, amts);
+
+        assertEq(keg.beer(), amts[0] + amts[1]); // Beer = 6
+        assertEq(keg.mugs(USER_1), amts[0]);     // Mug1 = 1.5
+        assertEq(keg.mugs(USER_2), amts[1]);     // Mug2 = 4.5
+        assertEq(keg.keg(), wad - keg.beer());   // Keg  = 4
+
+        assertEq(
+            vat.dai(address(keg)),
+            (keg.beer() + keg.keg()) * RAY // Beer + Keg = 10 DAI
+        );
+        assertEq(vat.dai(USER_1), 0);
+        assertEq(vat.dai(USER_2), 0);
+        
+        keg.sip(2 ether); // msg.sender == USER_1
     }
 
     function test_pass() public {

@@ -88,20 +88,23 @@ contract Keg is LibNote {
     DaiJoinLike public join;
     address 	public vow;
 
+    uint public keg;  // Total unencumbered funds
+    uint public beer; // Total encumbered funds (Available for people to withdraw)
+
     uint256 constant RAY = 10 ** 27;
 
-    //accounting for tracking users balances
+    // Accounting for tracking users availale balances
     mapping (address => uint) public mugs;
 
-    //two-way mapping tracks delegates
-    mapping (address => address) public pals;   //delegate -> original
-    mapping (address => address) public buds;   //original -> delegate
+    // Two-way mapping tracks delegates
+    mapping (address => address) public pals;   // delegate -> original
+    mapping (address => address) public buds;   // original -> delegate
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
     event MugFilled(address bum, uint256 beer);
-    event BrewBeer(uint256 beer);
+    event BrewBeer(uint beer, uint keg);
     event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
     event ByeFelicia(address indexed owner, address delegate);
@@ -114,6 +117,8 @@ contract Keg is LibNote {
         join = DaiJoinLike(join_);
         vow = vow_;
         vat.hope(address(join));
+        keg = 0;
+        beer = 0;
     }
 
     //credit compensation to payees
@@ -137,6 +142,7 @@ contract Keg is LibNote {
         uint256 beer = 0;
         require(bums.length != uint256(0));
         require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
+        require(bums.length > 0, "Keg/no-bums");
         for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
@@ -152,16 +158,16 @@ contract Keg is LibNote {
     function pass(address bud) external {
         require(bud != msg.sender, "Keg/cannot_delegate_to_self");
         require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
-        //remove existing delegate
+        // Remove existing delegate
         if (buds[msg.sender] != address(0)) yank();
-        //original addr -> delegated addr
+        // original addr -> delegated addr
         buds[msg.sender] = bud;
-        //delegated addr -> original addr
+        // delegated addr -> original addr
         pals[bud] = msg.sender;
         emit DrinkingBuddy(msg.sender, bud);
     }
 
-    //user revokes delegation
+    // User revokes delegation
     function yank() public {
         require(buds[msg.sender] != address(0), "Keg/no-bud");
         emit ByeFelicia(msg.sender, buds[msg.sender]);
@@ -169,7 +175,7 @@ contract Keg is LibNote {
         buds[msg.sender] = address(0);
     }
 
-    //user withdraws all their compensation
+    // User withdraws all funds
     function chug() external {
         //whose tab are we drinking on
         address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
@@ -188,6 +194,7 @@ contract Keg is LibNote {
         join.exit(msg.sender, beer);
         emit JustASip(bum, msg.sender, beer);
     }
+
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
