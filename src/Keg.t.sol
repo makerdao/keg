@@ -256,4 +256,13 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.buds(USER_1), address(0));
         keg.yank();
     }
+
+    function testFail_chug_with_yanked_bud() public {
+        keg.pass(USER_2);
+        keg.pass(USER_3);
+        //how does one become a different user - hevm hack?
+        //keg.chug()
+
+        assertTrue(false);  //temp to pass test
+    }
 }
