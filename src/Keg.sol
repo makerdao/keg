@@ -107,6 +107,7 @@ contract Keg is LibNote {
     // --- Events ---
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
+    event MugFilled(address bum, uint256 beer);
     event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
@@ -132,9 +133,10 @@ contract Keg is LibNote {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
             beer = add(beer, wad[i]);
+            emit MugFilled(bums[i], wad[i]);
     	}
     	vat.suck(address(vow), address(this), mul(beer, RAY));
-        emit BrewBeer(beer);
+        emit BrewedBeer(beer);
     }
 
     function pour(address[] calldata bums, uint[] calldata wad) external note stoppable {
@@ -148,7 +150,7 @@ contract Keg is LibNote {
         dai.move(msg.sender, address(this), beer);
         if (dai.allowance(address(this), address(join)) != uint(-1)) require(dai.approve(address(join)));
         join.join(address(this), beer);
-        emit PourBeer(msg.sender, beer);
+        emit PouredBeer(msg.sender, beer);
     }
 
     //user delegates compensation to another address
