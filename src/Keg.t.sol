@@ -129,6 +129,23 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(USER_2), amts[1]);
     }
 
+    function testFail_pour_no_allowance() public {
+        address[] memory users = new address[](2);
+        users[0] = USER_1;
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 1.5 ether;
+        amts[1] = 2.75 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(keg.mugs(USER_1), 0);
+        assertEq(keg.mugs(USER_2), 0);
+
+        dai.mint((amts[0] + amts[1]) * 10 ** 27);
+
+        keg.pour(users, amts);
+    }
+
     function test_chug() public {
         vote();
         scheduleWaitAndCast();
