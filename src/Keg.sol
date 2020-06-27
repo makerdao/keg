@@ -110,7 +110,7 @@ contract Keg is LibNote {
     event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
-    event NoNewFriends(address indexed owner, address delegate);
+    event ByeFelicia(address indexed owner, address delegate);
     event JustASip(address bud, address pal, uint256 beer);
     event DownTheHatch(address bud, address pal, uint256 beer);
 
@@ -153,6 +153,9 @@ contract Keg is LibNote {
 
     //user delegates compensation to another address
     function pass(address bud) external {
+        require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
+        //remove existing delegate
+        if (buds[msg.sender] != address(0)) yank();
         //original addr -> delegated addr
         buds[msg.sender] = bud;
         //delegated addr -> original addr
@@ -161,12 +164,11 @@ contract Keg is LibNote {
     }
 
     //user revokes delegation
-    function yank() external {
-        address bud;
-        bud = buds[msg.sender];
-        pals[bud] = address(0);
+    function yank() public {
+        require(buds[msg.sender] != address(0), "Keg/no-bud");
+        emit ByeFelicia(msg.sender, buds[msg.sender]);
+        pals[buds[msg.sender]] = address(0);
         buds[msg.sender] = address(0);
-        emit NoNewFriends(msg.sender, bud);
     }
 
     //user withdraws all their compensation
