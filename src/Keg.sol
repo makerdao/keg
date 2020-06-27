@@ -48,7 +48,6 @@ contract VatLike {
 }
 
 contract DaiJoinLike {
-    function dai() external view returns (address);
 	function exit(address, uint) external;
 }
 
@@ -89,7 +88,6 @@ contract Keg is LibNote {
 
     VatLike 	public vat;
     DaiJoinLike public join;
-    DSTokenLike public dai;
     address 	public vow;
 
     uint256 constant RAY = 10 ** 27;
@@ -114,7 +112,6 @@ contract Keg is LibNote {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         join = DaiJoinLike(join_);
-        dai = DSTokenLike(join.dai());
         vow = vow_;
         vat.hope(address(join));
     }
@@ -128,17 +125,13 @@ contract Keg is LibNote {
     	require(bum.length == wad.length, "Keg/unequal-payees-and-amounts");
     	for (uint i = 0; i < wad.length; i++) {
             require(bum[i] != address(0), "Keg/no-address-0");
-    		beer = add(beer, wad[i]);
+            mugs[bum[i]] = add(mugs[bum[i]], wad[i]);
+            beer = add(beer, wad[i]);
     	}
 
         //last param beer is a rad
     	vat.suck(address(vow), address(this), mul(beer, RAY));
-    	join.exit(address(this), beer);
 
-    	for (uint i = 0; i < bum.length; i++) {
-    		//add balance wad to address in mug
-    		mugs[bum[i]] = add(mugs[bum[i]], wad[i]);
-    	}
         emit BrewBeer(beer);
     }
 
@@ -169,7 +162,7 @@ contract Keg is LibNote {
         beer = mugs[bum];
         require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], beer);
-        dai.move(address(this), msg.sender, beer);
+        join.exit(msg.sender, beer);
         emit DownTheHatch(bum, msg.sender, beer);
     }
 
@@ -180,7 +173,7 @@ contract Keg is LibNote {
         pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
         require(beer <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], beer);
-        dai.move(address(this), msg.sender, beer);
+        join.exit(msg.sender, beer);
         emit JustASip(bum, msg.sender, beer);
     }
 
@@ -188,7 +181,6 @@ contract Keg is LibNote {
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
     	else if (what == "join") join = DaiJoinLike(addr);
-    	else if (what == "dai") dai = DSTokenLike(addr);
     	else if (what == "vow") vow = addr;
     	else revert("Keg/file-unrecognized-param");
     }

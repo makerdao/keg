@@ -81,7 +81,6 @@ contract KegTest is DSTest, DSMath {
     function test_keg_deploy() public {
         assertEq(address(keg.vat()),  MCD_VAT);
         assertEq(address(keg.join()), DAI_JOIN);
-        assertEq(address(keg.dai()),  DAI);
         assertEq(keg.vow(),  MCD_VOW);
     }
 
@@ -97,13 +96,13 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 1.5 ether;
         amts[1] = 2.75 ether;
 
-        assertEq(dai.balanceOf(address(keg)), 0);
+        assertEq(vat.dai(address(keg)), 0);
         assertEq(keg.mugs(USER_1), 0);
         assertEq(keg.mugs(USER_2), 0);
 
         keg.brew(users, amts);
 
-        assertEq(dai.balanceOf(address(keg)), amts[0] + amts[1]);
+        assertEq(vat.dai(address(keg)), (amts[0] + amts[1]) * 10 ** 27);
         assertEq(keg.mugs(USER_1), amts[0]);
         assertEq(keg.mugs(USER_2), amts[1]);
     }
@@ -121,13 +120,13 @@ contract KegTest is DSTest, DSMath {
 
         keg.brew(users, amts);
 
-        assertEq(dai.balanceOf(address(keg)), amts[0]);
+        assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
         assertEq(dai.balanceOf(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
         keg.chug();
 
-        assertEq(dai.balanceOf(address(keg)), 0);
+        assertEq(vat.dai(address(keg)), 0);
         assertEq(dai.balanceOf(USER_1), amts[0]);
         assertEq(keg.mugs(USER_1), 0);
     }
@@ -145,13 +144,13 @@ contract KegTest is DSTest, DSMath {
 
         keg.brew(users, amts);
 
-        assertEq(dai.balanceOf(address(keg)), amts[0]);
+        assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
         assertEq(dai.balanceOf(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
         keg.sip(1 ether);
 
-        assertEq(dai.balanceOf(address(keg)), amts[0] - 1 ether);
+        assertEq(vat.dai(address(keg)), (amts[0] - 1 ether) * 10 ** 27);
         assertEq(dai.balanceOf(USER_1), 1 ether);
         assertEq(keg.mugs(USER_1), amts[0] - 1 ether);
     }
