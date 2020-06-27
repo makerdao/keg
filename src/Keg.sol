@@ -88,7 +88,6 @@ contract Keg is LibNote {
     DaiJoinLike public join;
     address 	public vow;
 
-    uint public keg;  // Total unencumbered funds
     uint public beer; // Total encumbered funds (Available for people to withdraw)
 
     uint256 constant RAY = 10 ** 27;
@@ -104,7 +103,7 @@ contract Keg is LibNote {
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
     event MugFilled(address bum, uint256 beer);
-    event BrewBeer(uint beer, uint keg);
+    event BrewBeer(uint beer);
     event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
     event ByeFelicia(address indexed owner, address delegate);
@@ -117,42 +116,27 @@ contract Keg is LibNote {
         join = DaiJoinLike(join_);
         vow = vow_;
         vat.hope(address(join));
-        keg = 0;
         beer = 0;
     }
 
-    //credit compensation to payees
-    function brew(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
-    	uint256 beer = 0;
-        require(bums.length != uint256(0));
-    	require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
-    	for (uint i = 0; i < wad.length; i++) {
-            require(bums[i] != address(0), "Keg/no-address-0");
-            mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            beer = add(beer, wad[i]);
-            emit MugFilled(bums[i], wad[i]);
-    	}
-    	vat.suck(address(vow), address(this), mul(beer, RAY));
-        emit BrewBeer(beer);
+    // Suck from the vat to the keg to allow for a pool of funds
+    function brew(uint wad) external note auth stoppable {
+    	vat.suck(address(vow), address(this), mul(wad, RAY));
+        emit BrewBeer(wad);
     }
 
-    /*
-    //fork out later
-    function pour(address[] calldata bums, uint[] calldata wad) external note stoppable {
-        uint256 beer = 0;
-        require(bums.length != uint256(0));
+    // Credits people with rights to withdraw funds from the pool
+    function pour(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
         require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
         require(bums.length > 0, "Keg/no-bums");
         for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            beer = add(beer, wad[i]);
-            emit MugFilled(bums[i], wad[i]);
+            beer += wad[i];
+            emit PourBeer(bums[i], wad[i]);
         }
-        vat.move(msg.sender, address(this), mul(beer, RAY));
-        emit PourBeer(msg.sender, beer);
     }
-    */
+
 
     //user delegates compensation to another address
     function pass(address bud) external {
@@ -194,7 +178,6 @@ contract Keg is LibNote {
         join.exit(msg.sender, beer);
         emit JustASip(bum, msg.sender, beer);
     }
-
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
