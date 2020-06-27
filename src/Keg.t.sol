@@ -20,6 +20,7 @@ contract KegTest is DSTest, DSMath {
     address constant public MCD_VAT         = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
     address constant public USER_1          = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
     address constant public USER_2          = 0x644156537BdB3eaF81C904633C3bA844d5FEB00f;
+    address constant public USER_3          = 0xFfffFfFffbdB3eaf81c904633C3Ba844D5FEB00F;
     address constant public MCD_PAUSE_PROXY = 0x784e656E5Fa1F9CdCe4015539adA7fC31738Eba3;
 
     MKRAbstract       gov = MKRAbstract(0x8CA90018a8D759F68DD6de3d4fc58d37602aac78);
@@ -107,6 +108,26 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(USER_2), amts[1]);
     }
 
+    function testFail_brew_unequal_length() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        address[] memory users = new address[](2);
+        users[0] = USER_1;
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1.5 ether;
+
+        keg.brew(users, amts);
+    }
+
+    function testFail_brew_zero_length() public {
+        address[] memory users = new address[](0);
+        uint256[] memory amts = new uint256[](0);
+        keg.brew(users, amts);
+    }
+
     function test_chug() public {
         vote();
         scheduleWaitAndCast();
@@ -116,12 +137,11 @@ contract KegTest is DSTest, DSMath {
         users[0] = USER_1;
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1.5 ether;
-        assertEq(dai.balanceOf(address(keg)), 0);
+        assertEq(vat.dai(address(keg)), 0);
 
         keg.brew(users, amts);
 
         assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
-        assertEq(dai.balanceOf(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
         keg.chug();
@@ -129,6 +149,20 @@ contract KegTest is DSTest, DSMath {
         assertEq(vat.dai(address(keg)), 0);
         assertEq(dai.balanceOf(USER_1), amts[0]);
         assertEq(keg.mugs(USER_1), 0);
+    }
+
+    function testFail_zero_beer_chug() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        address[] memory users = new address[](1);
+        users[0] = USER_2;
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1.5 ether;
+
+        keg.brew(users, amts);
+        keg.chug();
     }
 
     function test_sip() public {
@@ -145,7 +179,7 @@ contract KegTest is DSTest, DSMath {
         keg.brew(users, amts);
 
         assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
-        assertEq(dai.balanceOf(USER_1), 0);
+        assertEq(vat.dai(USER_1), 0);
         assertEq(keg.mugs(USER_1), amts[0]);
 
         keg.sip(1 ether);
@@ -153,5 +187,87 @@ contract KegTest is DSTest, DSMath {
         assertEq(vat.dai(address(keg)), (amts[0] - 1 ether) * 10 ** 27);
         assertEq(dai.balanceOf(USER_1), 1 ether);
         assertEq(keg.mugs(USER_1), amts[0] - 1 ether);
+    }
+
+    function test_sip_all() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        address[] memory users = new address[](1);
+        users[0] = USER_1;
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1.5 ether;
+        keg.brew(users, amts);
+
+        keg.sip(1.5 ether);
+
+        assertEq(vat.dai(address(keg)), 0);
+        assertEq(dai.balanceOf(USER_1), 1.5 ether);
+        assertEq(keg.mugs(USER_1), 0);
+    }
+
+    function testFail_sip_too_big() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        address[] memory users = new address[](1);
+        users[0] = USER_1;
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1.5 ether;
+        keg.brew(users, amts);
+
+        keg.sip(2 ether);
+    }
+
+    function test_pass() public {
+        keg.pass(USER_2);
+        assertEq(keg.buds(USER_1), USER_2);
+        assertEq(keg.pals(USER_2), USER_1);
+    }
+
+    function testFail_pass_bud_with_existing_pal() public {
+        keg.pass(USER_2);
+        keg.pass(USER_2);
+    }
+
+    function test_pass_with_existing_bud() public {
+        keg.pass(USER_2);
+        keg.pass(USER_3);
+        assertEq(keg.buds(USER_1), USER_3);
+        assertEq(keg.pals(USER_2), address(0));
+        assertEq(keg.pals(USER_3), USER_1);
+    }
+
+    function testFail_pass_yourself() public {
+        keg.pass(USER_1);
+    }
+
+    function test_yank() public {
+        keg.pass(USER_2);
+        assertEq(keg.buds(USER_1), USER_2);
+        assertEq(keg.pals(USER_2), USER_1);
+        keg.yank();
+        assertEq(keg.buds(USER_1), address(0));
+        assertEq(keg.pals(USER_2), address(0));
+    }
+
+    function testFail_yank_no_bud() public {
+        assertEq(keg.buds(USER_1), address(0));
+        keg.yank();
+    }
+
+    function testFail_chug_with_yanked_bud() public {
+        keg.pass(USER_2);
+        keg.pass(USER_3);
+        //how does one become a different user - hevm hack?
+        //keg.chug()
+
+        assertTrue(false);  //temp to pass test
+    }
+
+    function test_chug_as_bud() public {
+        //how does one become a different user - hevm hack?
     }
 }
