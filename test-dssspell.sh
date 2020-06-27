@@ -3,7 +3,7 @@ set -e
 
 # [[ "$ETH_RPC_URL" && "$(seth chain)" == "ethlive" ]] || { echo "Please set a mainnet ETH_RPC_URL"; exit 1; }
 
-dapp --use solc:0.5.12 build
+dapp --use solc:0.5.15 build
 
 # MkrAuthority
 export DAPP_TEST_ADDRESS=0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1
