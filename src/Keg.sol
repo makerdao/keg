@@ -132,7 +132,7 @@ contract Keg is LibNote {
         for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            beer += wad[i];
+            beer = add(beer, wad[i]);
             emit PourBeer(bums[i], wad[i]);
         }
     }
@@ -168,7 +168,7 @@ contract Keg is LibNote {
         pint = mugs[bum];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], pint);
-        beer -= pint;
+        beer = sub(beer, pint);
         require(mugs[bum] == uint(0));
 
         vat.move(address(this), bum, mul(pint, RAY));
@@ -184,7 +184,7 @@ contract Keg is LibNote {
 
         require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], wad);
-        beer -= wad;
+       beer = sub(beer, wad);
         require(mugs[bum] >= uint(0));
 
         vat.move(address(this), bum, mul(wad, RAY));
