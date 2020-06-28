@@ -167,9 +167,9 @@ contract Keg is LibNote {
 
         pint = mugs[bum];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        mugs[bum] = sub(mugs[bum], pint);
+
         beer      = sub(beer, pint);
-        require(mugs[bum] == uint(0));
+        mugs[bum] = 0;
 
         vat.move(address(this), bum, mul(pint, RAY));
         emit DownTheHatch(bum, msg.sender, pint);
@@ -185,7 +185,6 @@ contract Keg is LibNote {
         require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], wad);
         beer      = sub(beer, wad);
-        require(mugs[bum] >= uint(0));
 
         vat.move(address(this), bum, mul(wad, RAY));
         emit JustASip(bum, msg.sender, wad);
