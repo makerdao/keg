@@ -167,7 +167,6 @@ contract Keg is LibNote {
 
         pint = mugs[bum];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
-
         mugs[bum] = sub(mugs[bum], pint);
         beer -= pint;
         require(mugs[bum] == uint(0));
@@ -179,12 +178,15 @@ contract Keg is LibNote {
     // User withdraws some of their compensation
     function sip(uint256 wad) external {
         address bum;
-        //whose tab are we drinking on
+
+        // Whose tab are we drinking on
         pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+
         require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], wad);
         beer -= wad;
         require(mugs[bum] >= uint(0));
+
         vat.move(address(this), bum, mul(wad, RAY));
         emit JustASip(bum, msg.sender, wad);
     }
