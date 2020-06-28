@@ -164,12 +164,13 @@ contract Keg is LibNote {
 
         // Whose tab are we drinking on
         pals[msg.sender]  != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
-        require(mugs[bum] != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        beer      = sub(beer, mugs[bum]);
+        uint pint = mugs[bum];
+        require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
+        beer      = sub(beer, pint);
         mugs[bum] = 0;
 
-        vat.move(address(this), bum, mul(mugs[bum], RAY));
-        emit DownTheHatch(bum, msg.sender, mugs[bum]);
+        vat.move(address(this), bum, mul(pint, RAY));
+        emit DownTheHatch(bum, msg.sender, pint);
     }
 
     // User withdraws some of their compensation
