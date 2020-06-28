@@ -136,7 +136,7 @@ contract Keg is LibNote {
             beer          = add(beer, wad[i]);
             emit PourBeer(bums[i], wad[i]);
         }
-        require(vat.dai(address(this)) == beer, "Keg/pour-not-equal-to-brew");
+        require(vat.dai(address(this)) == mul(beer, RAY), "Keg/pour-not-equal-to-brew");
     }
 
     // User delegates compensation to another address
@@ -165,7 +165,7 @@ contract Keg is LibNote {
         address bum;
 
         // Whose tab are we drinking on
-        pals[msg.sender]  != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
         uint pint = mugs[bum];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
         beer      = sub(beer, pint);

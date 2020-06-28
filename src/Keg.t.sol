@@ -66,7 +66,7 @@ contract KegTest is DSTest, DSMath {
         spell.cast();
     }
 
-    // function testSpellIsCast() public {
+    function testSpellIsCast() public {
         // Test description
         string memory description = new SpellAction().description();
         assertTrue(bytes(description).length > 0);
