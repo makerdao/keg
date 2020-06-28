@@ -103,8 +103,7 @@ contract Keg is LibNote {
     // --- Events ---
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
-    event MugFilled(address bum, uint256 beer);
-    event BrewBeer(uint beer);
+    event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
     event ByeFelicia(address indexed owner, address delegate);
@@ -130,12 +129,14 @@ contract Keg is LibNote {
     function pour(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
         require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
         require(bums.length > 0, "Keg/no-bums");
+        uint suds = 0;
         for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            beer          = add(beer, wad[i]);
+            suds          = add(suds, wad[i]);
             emit PourBeer(bums[i], wad[i]);
         }
+        beer = add(beer, suds);
         require(vat.dai(address(this)) == mul(beer, RAY), "Keg/pour-not-equal-to-brew");
     }
 
@@ -162,10 +163,8 @@ contract Keg is LibNote {
 
     // User withdraws all funds
     function chug() external {
-        address bum;
-
         // Whose tab are we drinking on
-        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
         uint pint = mugs[bum];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
         beer      = sub(beer, pint);
@@ -177,11 +176,8 @@ contract Keg is LibNote {
 
     // User withdraws some of their compensation
     function sip(uint256 wad) external {
-        address bum;
-
         // Whose tab are we drinking on
-        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
-        require(wad <= mugs[bum], "Keg/too-thirsty-not-enough-beer");
+        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
         mugs[bum] = sub(mugs[bum], wad);
         beer      = sub(beer, wad);
 
