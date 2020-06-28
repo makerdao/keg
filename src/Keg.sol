@@ -96,8 +96,8 @@ contract Keg is LibNote {
     mapping (address => uint) public mugs;
 
     // Two-way mapping tracks delegates
-    mapping (address => address) public pals;   // delegate -> original
-    mapping (address => address) public buds;   // original -> delegate
+    mapping (address => address) public pals;   // Delegate -> Original
+    mapping (address => address) public buds;   // Original -> Delegate
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
@@ -143,9 +143,9 @@ contract Keg is LibNote {
         require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
         // Remove existing delegate
         if (buds[msg.sender] != address(0)) yank();
-        // original addr -> delegated addr
+        // Original addr -> delegated addr
         buds[msg.sender] = bud;
-        // delegated addr -> original addr
+        // Delegated addr -> original addr
         pals[bud] = msg.sender;
         emit DrinkingBuddy(msg.sender, bud);
     }
@@ -157,6 +157,7 @@ contract Keg is LibNote {
         pals[buds[msg.sender]] = address(0);
         buds[msg.sender] = address(0);
     }
+    
     // User withdraws all funds
     function chug() external {
         address bum;
