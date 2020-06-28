@@ -157,23 +157,19 @@ contract Keg is LibNote {
         pals[buds[msg.sender]] = address(0);
         buds[msg.sender] = address(0);
     }
-    
+
     // User withdraws all funds
     function chug() external {
         address bum;
-        uint256 pint;
 
         // Whose tab are we drinking on
-        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
-
-        pint = mugs[bum];
-        require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
-
-        beer      = sub(beer, pint);
+        pals[msg.sender]  != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+        require(mugs[bum] != uint256(0), "Keg/too-thirsty-not-enough-beer");
+        beer      = sub(beer, mugs[bum]);
         mugs[bum] = 0;
 
-        vat.move(address(this), bum, mul(pint, RAY));
-        emit DownTheHatch(bum, msg.sender, pint);
+        vat.move(address(this), bum, mul(mugs[bum], RAY));
+        emit DownTheHatch(bum, msg.sender, mugs[bum]);
     }
 
     // User withdraws some of their compensation
@@ -182,8 +178,7 @@ contract Keg is LibNote {
 
         // Whose tab are we drinking on
         pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
-
-        require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
+        require(wad <= mugs[bum], "Keg/too-thirsty-not-enough-beer");
         mugs[bum] = sub(mugs[bum], wad);
         beer      = sub(beer, wad);
 
