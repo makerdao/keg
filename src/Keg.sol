@@ -46,6 +46,7 @@ contract VatLike {
 	function suck(address, address, uint) external;
     function hope(address) external;
     function move(address, address, uint) external;
+    function dai(address) external view returns (uint);
 }
 
 contract DaiJoinLike {
@@ -135,6 +136,7 @@ contract Keg is LibNote {
             beer          = add(beer, wad[i]);
             emit PourBeer(bums[i], wad[i]);
         }
+        require(vat.dai(address(this)) == beer, "Keg/pour-not-equal-to-brew");
     }
 
     // User delegates compensation to another address

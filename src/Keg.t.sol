@@ -66,7 +66,7 @@ contract KegTest is DSTest, DSMath {
         spell.cast();
     }
 
-    function testSpellIsCast() public {
+    // function testSpellIsCast() public {
         // Test description
         string memory description = new SpellAction().description();
         assertTrue(bytes(description).length > 0);
@@ -124,10 +124,37 @@ contract KegTest is DSTest, DSMath {
         assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 6 DAI
     }
 
+    function testFail_pour_unequal_to_brew() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        uint wad = 6 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        keg.brew(wad);
+        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
+
+        address[] memory users = new address[](2);
+        users[0] = USER_1;
+        users[1] = USER_2;
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 1.5 ether;
+        amts[1] = 4.499 ether;
+
+        keg.pour(users, amts);
+    }
+
     function testFail_pour_unequal_length() public {
         vote();
         scheduleWaitAndCast();
         assertTrue(spell.done());
+
+        uint wad = 6 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        keg.brew(wad);
+        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
 
         address[] memory users = new address[](2);
         users[0] = USER_1;
@@ -139,12 +166,32 @@ contract KegTest is DSTest, DSMath {
     }
 
     function testFail_pour_zero_length() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        uint wad = 6 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        keg.brew(wad);
+        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
+
         address[] memory users = new address[](0);
         uint256[] memory amts = new uint256[](0);
         keg.pour(users, amts);
     }
 
     function testFail_pour_zero_address() public {
+        vote();
+        scheduleWaitAndCast();
+        assertTrue(spell.done());
+
+        uint wad = 6 ether;
+
+        assertEq(vat.dai(address(keg)), 0);
+        keg.brew(wad);
+        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
+
         address[] memory users = new address[](2);
         users[0] = address(0);
         uint256[] memory amts = new uint256[](1);
