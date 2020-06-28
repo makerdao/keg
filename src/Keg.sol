@@ -137,8 +137,7 @@ contract Keg is LibNote {
         }
     }
 
-
-    //user delegates compensation to another address
+    // User delegates compensation to another address
     function pass(address bud) external {
         require(bud != msg.sender, "Keg/cannot_delegate_to_self");
         require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
@@ -158,25 +157,36 @@ contract Keg is LibNote {
         pals[buds[msg.sender]] = address(0);
         buds[msg.sender] = address(0);
     }
-
     // User withdraws all funds
     function chug() external {
-        //whose tab are we drinking on
-        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        uint256 beer = mugs[bum];
-        require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        join.exit(msg.sender, mugs[bum]);
-        emit DownTheHatch(bum, msg.sender, beer);
-        mugs[bum] = 0;
+        address bum;
+        uint256 pint;
+
+        // Whose tab are we drinking on
+        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+
+        pint = mugs[bum];
+        require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
+
+        mugs[bum] = sub(mugs[bum], pint);
+        beer -= pint;
+        require(mugs[bum] == uint(0));
+
+        vat.move(address(this), bum, mul(pint, RAY));
+        emit DownTheHatch(bum, msg.sender, pint);
     }
 
-    //user withdraws some of their compensation
-    function sip(uint256 beer) external {
+    // User withdraws some of their compensation
+    function sip(uint256 wad) external {
+        address bum;
         //whose tab are we drinking on
-        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        mugs[bum] = sub(mugs[bum], beer);
-        join.exit(msg.sender, beer);
-        emit JustASip(bum, msg.sender, beer);
+        pals[msg.sender] != address(0) ? bum = pals[msg.sender] : bum = msg.sender;
+        require(wad <= mugs[msg.sender], "Keg/too-thirsty-not-enough-beer");
+        mugs[bum] = sub(mugs[bum], wad);
+        beer -= wad;
+        require(mugs[bum] >= uint(0));
+        vat.move(address(this), bum, mul(wad, RAY));
+        emit JustASip(bum, msg.sender, wad);
     }
 
     // --- Administration ---

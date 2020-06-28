@@ -157,7 +157,7 @@ contract KegTest is DSTest, DSMath {
         scheduleWaitAndCast();
         assertTrue(spell.done());
 
-        uint wad = 6 ether; 
+        uint wad = 6 ether;
         assertEq(vat.dai(address(keg)), 0);
 
         keg.brew(wad); // 6 DAI brewed
@@ -169,13 +169,7 @@ contract KegTest is DSTest, DSMath {
         users[1] = USER_2;
         uint256[] memory amts = new uint256[](2);
         amts[0] = 1.5 ether;
-        assertEq(dai.balanceOf(address(keg)), 0);
-
-        keg.brew(users, amts);
-
-        assertEq(vat.dai(address(keg)), amts[0] * 10 ** 27);
-        assertEq(vat.dai(USER_1), 0);
-        assertEq(keg.mugs(USER_1), amts[0]);
+        amts[1] = 4.5 ether;
 
         assertEq(keg.beer(), 0);
         assertEq(keg.mugs(USER_1), 0);
@@ -206,7 +200,7 @@ contract KegTest is DSTest, DSMath {
         scheduleWaitAndCast();
         assertTrue(spell.done());
 
-        uint wad = 6 ether; // 10 DAI brewed
+        uint wad = 6 ether; // 6 DAI brewed
         assertEq(vat.dai(address(keg)), 0);
 
         keg.brew(wad);
