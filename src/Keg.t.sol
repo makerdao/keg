@@ -14,8 +14,6 @@ contract KegTest is DSTest, DSMath {
 
     DssSpell spell;
 
-    address constant public DAI             = 0x78E8E1F59D80bE6700692E2aAA181eAb819FA269;
-    address constant public DAI_JOIN        = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
     address constant public MCD_VOW         = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
     address constant public MCD_VAT         = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
     address constant public USER_1          = 0x57D37c790DDAA0b82e3DEb291DbDd8556c94F1f1;
@@ -27,7 +25,7 @@ contract KegTest is DSTest, DSMath {
     DSChiefAbstract chief = DSChiefAbstract(0x8C67F07CBe3c0dBA5ECd5c1804341703458A2e8A);
     DSPauseAbstract pause = DSPauseAbstract(0xCE8B162F99eFB2dFc0A448A8D7Ed3218B5919ED1);
     VatAbstract       vat = VatAbstract(MCD_VAT);
-    Keg               keg = new Keg(MCD_VAT, DAI_JOIN, MCD_VOW);
+    Keg               keg = new Keg(MCD_VAT, MCD_VOW);
     GemAbstract       dai = GemAbstract(0x78E8E1F59D80bE6700692E2aAA181eAb819FA269);
 
     uint256 constant public THOUSAND = 10**3;
@@ -75,13 +73,13 @@ contract KegTest is DSTest, DSMath {
         scheduleWaitAndCast();
         assertTrue(spell.done());
         assertEq(vat.wards(address(keg)), 1);
-        assertEq(vat.can(address(keg), DAI_JOIN), 1);
     }
 
     function test_keg_deploy() public {
+        assertEq(keg.wards(address(this)),  1);
         assertEq(address(keg.vat()),  MCD_VAT);
-        assertEq(address(keg.join()), DAI_JOIN);
-        assertEq(keg.vow(),  MCD_VOW);
+        assertEq(keg.vow(), MCD_VOW);
+        assertEq(keg.beer(), 0);
     }
 
     function test_brew() public {

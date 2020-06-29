@@ -44,15 +44,8 @@ contract LibNote {
 
 contract VatLike {
 	function suck(address, address, uint) external;
-    function hope(address) external;
     function move(address, address, uint) external;
     function dai(address) external view returns (uint);
-}
-
-contract DaiJoinLike {
-    function dai() external view returns (address);
-    function join(address, uint) external;
-	function exit(address, uint) external;
 }
 
 contract Keg is LibNote {
@@ -86,7 +79,6 @@ contract Keg is LibNote {
     modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
 
     VatLike 	public vat;
-    DaiJoinLike public join;
     address 	public vow;
 
     uint public beer; // Total encumbered funds (Available for people to withdraw)
@@ -110,12 +102,10 @@ contract Keg is LibNote {
     event JustASip(address bud, address pal, uint256 beer);
     event DownTheHatch(address bud, address pal, uint256 beer);
 
-    constructor(address vat_, address join_, address vow_) public {
+    constructor(address vat_, address vow_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
-        join = DaiJoinLike(join_);
         vow = vow_;
-        vat.hope(address(join));
         beer = 0;
     }
 
@@ -188,7 +178,6 @@ contract Keg is LibNote {
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
-    	else if (what == "join") join = DaiJoinLike(addr);
     	else if (what == "vow") vow = addr;
     	else revert("Keg/file-unrecognized-param");
     }
