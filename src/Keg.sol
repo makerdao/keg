@@ -164,13 +164,15 @@ contract Keg is LibNote {
     }
 
     // User withdraws some of their compensation
+    // TODO: Handle case where: mugs[pals[msg.sender]] < wad < (mugs[pals[msg.sender]] + mugs[bum])
+    // TODO: Handle case where: mugs[pals[msg.sender]] == 0 && mugs[msg.sender] > 0
     function sip(uint256 wad) external {
         // Whose tab are we drinking on
         address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
         mugs[bum] = sub(mugs[bum], wad);
         beer = sub(beer, wad);
 
-        vat.move(address(this), bum, mul(wad, RAY));
+        vat.move(address(this), msg.sender, mul(wad, RAY));
         emit JustASip(msg.sender, wad);
     }
 
