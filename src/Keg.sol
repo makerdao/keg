@@ -46,6 +46,7 @@ contract VatLike {
 	function suck(address, address, uint) external;
     function hope(address) external;
     function move(address, address, uint) external;
+    function dai(address) external view returns (uint);
 }
 
 contract DaiJoinLike {
@@ -88,19 +89,20 @@ contract Keg is LibNote {
     DaiJoinLike public join;
     address 	public vow;
 
+    uint public beer; // Total encumbered funds (Available for people to withdraw)
+
     uint256 constant RAY = 10 ** 27;
 
-    //accounting for tracking users balances
+    // Accounting for tracking users availale balances
     mapping (address => uint) public mugs;
 
-    //two-way mapping tracks delegates
-    mapping (address => address) public pals;   //delegate -> original
-    mapping (address => address) public buds;   //original -> delegate
+    // Two-way mapping tracks delegates
+    mapping (address => address) public pals;   // Delegate -> Original
+    mapping (address => address) public buds;   // Original -> Delegate
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
-    event MugFilled(address bum, uint256 beer);
     event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
     event DrinkingBuddy(address indexed owner, address delegate);
@@ -114,54 +116,44 @@ contract Keg is LibNote {
         join = DaiJoinLike(join_);
         vow = vow_;
         vat.hope(address(join));
+        beer = 0;
     }
 
-    //credit compensation to payees
-    function brew(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
-    	uint256 beer = 0;
-        require(bums.length != uint256(0));
-    	require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
-    	for (uint i = 0; i < wad.length; i++) {
-            require(bums[i] != address(0), "Keg/no-address-0");
-            mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            beer = add(beer, wad[i]);
-            emit MugFilled(bums[i], wad[i]);
-    	}
-    	vat.suck(address(vow), address(this), mul(beer, RAY));
-        emit BrewBeer(beer);
+    // Suck from the vat to the keg to allow for a pool of funds
+    function brew(uint wad) external note auth stoppable {
+    	vat.suck(address(vow), address(this), mul(wad, RAY));
+        emit BrewBeer(wad);
     }
 
-    /*
-    //fork out later
-    function pour(address[] calldata bums, uint[] calldata wad) external note stoppable {
-        uint256 beer = 0;
-        require(bums.length != uint256(0));
+    // Credits people with rights to withdraw funds from the pool
+    function pour(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
         require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
+        require(bums.length > 0, "Keg/no-bums");
+        uint suds = 0;
         for (uint i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            beer = add(beer, wad[i]);
-            emit MugFilled(bums[i], wad[i]);
+            suds          = add(suds, wad[i]);
+            emit PourBeer(bums[i], wad[i]);
         }
-        vat.move(msg.sender, address(this), mul(beer, RAY));
-        emit PourBeer(msg.sender, beer);
+        beer = add(beer, suds);
+        require(vat.dai(address(this)) == mul(beer, RAY), "Keg/pour-not-equal-to-brew");
     }
-    */
 
-    //user delegates compensation to another address
+    // User delegates compensation to another address
     function pass(address bud) external {
         require(bud != msg.sender, "Keg/cannot_delegate_to_self");
         require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
-        //remove existing delegate
+        // Remove existing delegate
         if (buds[msg.sender] != address(0)) yank();
-        //original addr -> delegated addr
+        // Original addr -> delegated addr
         buds[msg.sender] = bud;
-        //delegated addr -> original addr
+        // Delegated addr -> original addr
         pals[bud] = msg.sender;
         emit DrinkingBuddy(msg.sender, bud);
     }
 
-    //user revokes delegation
+    // User revokes delegation
     function yank() public {
         require(buds[msg.sender] != address(0), "Keg/no-bud");
         emit ByeFelicia(msg.sender, buds[msg.sender]);
@@ -169,24 +161,28 @@ contract Keg is LibNote {
         buds[msg.sender] = address(0);
     }
 
-    //user withdraws all their compensation
+    // User withdraws all funds
     function chug() external {
-        //whose tab are we drinking on
+        // Whose tab are we drinking on
         address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        uint256 beer = mugs[bum];
-        require(beer != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        join.exit(msg.sender, mugs[bum]);
-        emit DownTheHatch(bum, msg.sender, beer);
+        uint pint = mugs[bum];
+        require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
+        beer      = sub(beer, pint);
         mugs[bum] = 0;
+
+        vat.move(address(this), bum, mul(pint, RAY));
+        emit DownTheHatch(bum, msg.sender, pint);
     }
 
-    //user withdraws some of their compensation
-    function sip(uint256 beer) external {
-        //whose tab are we drinking on
+    // User withdraws some of their compensation
+    function sip(uint256 wad) external {
+        // Whose tab are we drinking on
         address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        mugs[bum] = sub(mugs[bum], beer);
-        join.exit(msg.sender, beer);
-        emit JustASip(bum, msg.sender, beer);
+        mugs[bum] = sub(mugs[bum], wad);
+        beer      = sub(beer, wad);
+
+        vat.move(address(this), bum, mul(wad, RAY));
+        emit JustASip(bum, msg.sender, wad);
     }
 
     // --- Administration ---
