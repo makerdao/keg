@@ -97,10 +97,10 @@ contract Keg is LibNote {
     event RetiredBrewMaster(address brewmaster);
     event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
-    event DrinkingBuddy(address indexed owner, address delegate);
-    event ByeFelicia(address indexed owner, address delegate);
-    event JustASip(address bud, address pal, uint256 beer);
-    event DownTheHatch(address bud, address pal, uint256 beer);
+    event DrinkingBuddy(address indexed owner, address bud);
+    event ByeFelicia(address indexed owner, address bud);
+    event JustASip(address bum, uint256 beer);
+    event DownTheHatch(address bum, uint256 beer);
 
     constructor(address vat_, address vow_) public {
         wards[msg.sender] = 1;
@@ -153,14 +153,14 @@ contract Keg is LibNote {
 
     // User withdraws all funds
     function chug() external {
-        uint pint = mugs[bum] + mugs[pals[msg.sender]];
+        uint pint = mugs[msg.sender] + mugs[pals[msg.sender]];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
         beer      = sub(beer, pint);
-        mugs[bum] = 0;
-        mugs[pals[msg.sender]] = 0
+        mugs[msg.sender] = 0;
+        mugs[pals[msg.sender]] = 0;
 
-        vat.move(address(this), bum, mul(pint, RAY));
-        emit DownTheHatch(bum, msg.sender, pint);
+        vat.move(address(this), msg.sender, mul(pint, RAY));
+        emit DownTheHatch(msg.sender, pint);
     }
 
     // User withdraws some of their compensation
@@ -171,7 +171,7 @@ contract Keg is LibNote {
         beer      = sub(beer, wad);
 
         vat.move(address(this), bum, mul(wad, RAY));
-        emit JustASip(bum, msg.sender, wad);
+        emit JustASip(msg.sender, wad);
     }
 
     // --- Administration ---
