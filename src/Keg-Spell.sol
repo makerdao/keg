@@ -46,7 +46,7 @@ contract SpellAction {
     address constant public DAI_JOIN = 0x42497e715a1e793a65E9c83FE813AfC677952e16; // Have not done rely/deny
     address constant public MCD_VOW  = 0xBFE7af74255c660e187758D23A08B4D5074252C7;
     address constant public MCD_VAT  = 0x11eFdA5E32683555a508c30B1100063b4335FC3E;
-    address constant public MCD_KEG  = 0xA4D26B2C790D11b9d5F94A795AEb7983B216cC1e;
+    address constant public MCD_KEG  = 0xD0505C9A76686a5FF67147C0A079863e8D45e725;
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -63,9 +63,26 @@ contract SpellAction {
     uint256 constant public ZERO_PCT_RATE = 1000000000000000000000000000;
     uint256 constant public ONE_PCT_RATE  = 1000000000315522921573372069;
 
-    function execute(address keg) external {
-        // Rely on Keg contract
-        VatAbstract(MCD_VAT).rely(keg);
+    function execute() external {
+        /* --- First Spell --- */
+        // VatAbstract(MCD_VAT).rely(MCD_KEG);
+
+        /* --- Second Spell --- */
+        Keg keg = Keg(MCD_KEG);
+        keg.brew(70 * WAD);
+
+        address[] memory users = new address[](4);
+        users[0] = 0x0048d6225D1F3eA4385627eFDC5B4709Cab4A21c;
+        users[1] = 0x60Fd36AEfE398CcC77eca6219c26e80FF1185282;
+        users[2] = 0x4554Ca72e7260cf88fC640a875f9477D5ADdB764;
+        users[3] = 0x999E268cc9461c9ea8Bf88b92fB94CA3Bc19A975;
+        uint256[] memory amts = new uint256[](4);
+        amts[0] = 20 * WAD;
+        amts[1] = 25 * WAD;
+        amts[2] = 10 * WAD;
+        amts[3] = 15 * WAD;
+
+        keg.pour(users, amts);
     }
 }
 
@@ -80,8 +97,8 @@ contract DssSpell {
     uint256          public expiration;
     bool             public done;
 
-    constructor(address keg) public {
-        sig = abi.encodeWithSignature("execute(address)", keg);
+    constructor() public {
+        sig = abi.encodeWithSignature("execute()");
         action = address(new SpellAction());
         bytes32 _tag;
         address _action = action;

@@ -153,12 +153,11 @@ contract Keg is LibNote {
 
     // User withdraws all funds
     function chug() external {
-        // Whose tab are we drinking on
-        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        uint pint = mugs[bum];
+        uint pint = mugs[bum] + mugs[pals[msg.sender]];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
         beer      = sub(beer, pint);
         mugs[bum] = 0;
+        mugs[pals[msg.sender]] = 0
 
         vat.move(address(this), bum, mul(pint, RAY));
         emit DownTheHatch(bum, msg.sender, pint);

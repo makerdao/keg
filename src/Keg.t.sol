@@ -20,12 +20,13 @@ contract KegTest is DSTest, DSMath {
     address constant public USER_2          = 0x644156537BdB3eaF81C904633C3bA844d5FEB00f;
     address constant public USER_3          = 0xFfffFfFffbdB3eaf81c904633C3Ba844D5FEB00F;
     address constant public MCD_PAUSE_PROXY = 0x784e656E5Fa1F9CdCe4015539adA7fC31738Eba3;
+    address constant public MCD_KEG         = 0xD0505C9A76686a5FF67147C0A079863e8D45e725;
 
     MKRAbstract       gov = MKRAbstract(0x8CA90018a8D759F68DD6de3d4fc58d37602aac78);
     DSChiefAbstract chief = DSChiefAbstract(0x8C67F07CBe3c0dBA5ECd5c1804341703458A2e8A);
     DSPauseAbstract pause = DSPauseAbstract(0xCE8B162F99eFB2dFc0A448A8D7Ed3218B5919ED1);
     VatAbstract       vat = VatAbstract(MCD_VAT);
-    Keg               keg = new Keg(MCD_VAT, MCD_VOW);
+    Keg               keg = Keg(MCD_KEG);
     GemAbstract       dai = GemAbstract(0x78E8E1F59D80bE6700692E2aAA181eAb819FA269);
 
     uint256 constant public THOUSAND = 10**3;
@@ -39,7 +40,7 @@ contract KegTest is DSTest, DSMath {
 
     function setUp() public {
         hevm = Hevm(address(CHEAT_CODE));
-        spell = new DssSpell(address(keg));
+        spell = new DssSpell();
     }
 
     function vote() private {
