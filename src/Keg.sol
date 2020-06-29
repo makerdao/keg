@@ -97,7 +97,7 @@ contract Keg is LibNote {
     event RetiredBrewMaster(address brewmaster);
     event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
-    event DrinkingBuddy(address indexed owner, address bud);
+    event HoldMyBeerBro(address indexed owner, address bud);
     event ByeFelicia(address indexed owner, address bud);
     event JustASip(address bum, uint256 beer);
     event DownTheHatch(address bum, uint256 beer);
@@ -140,22 +140,22 @@ contract Keg is LibNote {
         buds[msg.sender] = bud;
         // Delegated addr -> original addr
         pals[bud] = msg.sender;
-        emit DrinkingBuddy(msg.sender, bud);
+        emit HoldMyBeerBro(msg.sender, bud);
     }
 
     // User revokes delegation
     function yank() public {
         require(buds[msg.sender] != address(0), "Keg/no-bud");
-        emit ByeFelicia(msg.sender, buds[msg.sender]);
         pals[buds[msg.sender]] = address(0);
         buds[msg.sender] = address(0);
+        emit ByeFelicia(msg.sender, buds[msg.sender]);
     }
 
     // User withdraws all funds
     function chug() external {
         uint pint = mugs[msg.sender] + mugs[pals[msg.sender]];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        beer      = sub(beer, pint);
+        beer = sub(beer, pint);
         mugs[msg.sender] = 0;
         mugs[pals[msg.sender]] = 0;
 
@@ -168,7 +168,7 @@ contract Keg is LibNote {
         // Whose tab are we drinking on
         address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
         mugs[bum] = sub(mugs[bum], wad);
-        beer      = sub(beer, wad);
+        beer = sub(beer, wad);
 
         vat.move(address(this), bum, mul(wad, RAY));
         emit JustASip(msg.sender, wad);
