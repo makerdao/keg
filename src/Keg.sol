@@ -54,6 +54,15 @@ contract VatLike {
 
 contract Keg is LibNote {
 
+    struct Pint {
+        address mug;   // Who to pay
+        uint256 share; // The fraction of the total amount to pay out [wad]
+    }
+    struct Flight {
+        mapping (uint256 => Pint) pints;
+        uint256 numPints;
+    }
+
 	// --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; emit NewBrewMaster(usr); }
@@ -87,6 +96,7 @@ contract Keg is LibNote {
 
     uint public beer; // Total encumbered funds (Available for people to withdraw)
 
+    uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
 
     // Accounting for tracking users availale balances
@@ -95,6 +105,9 @@ contract Keg is LibNote {
     // Two-way mapping tracks delegates
     mapping (address => address) public pals;   // Delegate -> Original
     mapping (address => address) public buds;   // Original -> Delegate
+
+    // Define payout ratios
+    mapping (address => Flight) public flights;
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
@@ -132,6 +145,28 @@ contract Keg is LibNote {
         }
         beer = add(beer, suds);
         require(vat.dai(address(this)) == mul(beer, RAY), "Keg/pour-not-equal-to-brew");
+    }
+
+    // Credits people with rights to withdraw funds from the pool using a preset flight
+    function pour(uint256 wad) external note stoppable {
+        require(flights[msg.sender].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+    	vat.suck(address(vow), address(this), mul(wad, RAY));
+        
+        uint256 suds = 0;
+        for (uint256 i = 0; i < flights[msg.sender].numPints; i++) {
+            uint256 sud;
+            if (i == flights[msg.sender].numPints - 1) {
+                // Add whatevers left over to the last mug to account for rounding errors
+                sud = sub(wad, suds);
+            } else {
+                // Otherwise use the share amount
+                sud = mul(wad, flights[msg.sender].pints[i].share) / WAD;
+            }
+            mugs[flights[msg.sender].pints[i].mug] = add(mugs[flights[msg.sender].pints[i].mug], sud);
+            suds = add(suds, sud);
+            emit PourBeer(flights[msg.sender].pints[i].mug, sud);
+        }
+        beer = add(beer, suds);
     }
 
     // User delegates compensation to another address
@@ -178,6 +213,30 @@ contract Keg is LibNote {
 
         vat.move(address(this), msg.sender, mul(wad, RAY));
         emit JustASip(msg.sender, wad);
+    }
+
+    // Authorize a preset flight
+    // TODO: events
+    function addFlight(address source, address[] calldata bums, uint256[] calldata shares) external note auth {
+        require(bums.length == shares.length, "Keg/unequal-bums-and-shares");
+        require(source != address(0), "Keg/no-address-0");
+
+        // Pints need to add up to 100%
+        flights[source] = Flight({numPints:bums.length});
+        uint256 total = 0;
+        for (uint256 i = 0; i < bums.length; i++) {
+            require(bums[i] != address(0), "Keg/no-address-0");
+            total = add(total, shares[i]);
+            flights[source].pints[i] = Pint(bums[i], shares[i]);
+        }
+        require(total == WAD, "Keg/invalid-flight");
+    }
+
+    // Deauthorize a flight
+    // TODO: events
+    function removeFlight(address source) external note auth {
+        require(flights[msg.sender].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        delete flights[msg.sender];
     }
 
     // --- Administration ---
