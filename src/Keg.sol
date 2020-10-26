@@ -51,6 +51,180 @@ interface IERC20 {
     function transferFrom(address,address,uint256) external returns (bool);
 }
 
+contract VatLike {
+	function suck(address, address, uint256) external;
+    function move(address, address, uint256) external;
+    function dai(address) external view returns (uint256);
+}
+
+contract DaiLike {
+	function approve(address, uint256) external;
+}
+
+contract DaiJoinLike {
+	function dai() external view returns (address);
+	function exit(address, uint256) external;
+}
+
+contract KegLike {
+	function pour(bytes32 flight, uint256 wad) external;
+}
+
+interface FlapLike {
+    function kick(uint256 lot, uint256 bid) external returns (uint256);
+    function cage(uint256) external;
+}
+
+// A tap can suck funds from the vow to fill the keg at a preset rate.
+contract Tap is LibNote {
+
+	// --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external note auth { wards[usr] = 1; }
+    function deny(address usr) external note auth { wards[usr] = 0; }
+    modifier auth {
+        require(wards[msg.sender] == 1, "Keg/not-authorized");
+        _;
+    }
+
+    // --- Stop ---
+    uint256 public stopped;
+    function stop() external note auth { stopped = 1; }
+    function start() external note auth { stopped = 0; }
+    modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
+
+    VatLike public vat;
+    address public vow;
+    DaiJoinLike public daiJoin;
+    KegLike public keg;
+
+    bytes32 public flight;  // The target flight in keg
+    uint256 public rate;    // The per-second rate of distributing funds [wad]
+    uint256 public rho;     // Time of last pump [unix epoch time]
+
+    uint256 constant RAY = 10 ** 27;
+
+    constructor(address vat_, address vow_, address daiJoin_, address keg_) public {
+        wards[msg.sender] = 1;
+        vat = VatLike(vat_);
+        vow = vow_;
+        daiJoin = DaiJoinLike(daiJoin_);
+        rate = 0;
+        rho = now;
+    }
+
+    // --- Math ---
+    function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+
+    function pump() external note stoppable {
+        require(now >= rho, "Tap/invalid-now");
+        uint256 wad = mul(now - rho, rate);
+    	vat.suck(address(vow), address(this), wad * RAY);
+        daiJoin.exit(address(this), wad);
+        DaiLike(daiJoin.dai()).approve(address(keg), wad);
+        keg.pour(flight, wad);
+        rho = now;
+    }
+
+    // --- Administration ---
+    function file(bytes32 what, address addr) external note auth {
+    	if (what == "vat") vat = VatLike(addr);
+    	else if (what == "vow") vow = addr;
+    	else if (what == "keg") keg = KegLike(addr);
+    	else revert("Tap/file-unrecognized-param");
+    }
+    function file(bytes32 what, bytes32 data) external note auth {
+        require(now == rho, "Tap/rho-not-updated");
+    	if (what == "flight") flight = data;
+    	else revert("Tap/file-unrecognized-param");
+    }
+    function file(bytes32 what, uint256 data) external note auth {
+        require(now == rho, "Tap/rho-not-updated");
+    	if (what == "rate") rate = data;
+    	else revert("Tap/file-unrecognized-param");
+    }
+
+}
+
+// A modified version of Tap which sits between the vow and the actual flapper.
+// Redirects funds to the keg at a preset fractional flow.
+contract FlapTap is LibNote, FlapLike {
+
+	// --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external note auth { wards[usr] = 1; }
+    function deny(address usr) external note auth { wards[usr] = 0; }
+    modifier auth {
+        require(wards[msg.sender] == 1, "Keg/not-authorized");
+        _;
+    }
+
+    VatLike public vat;
+    FlapLike public flapper;
+    DaiJoinLike public daiJoin;
+    KegLike public keg;
+    uint256  public live;   // Active Flag
+
+    bytes32 public flight;  // The target flight in keg
+    uint256 public flow;    // The fraction of the lot which goes to the keg [wad]
+
+    uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
+    uint256 constant RAD = 10 ** 45;
+
+    constructor(address vat_, address flapper_, address daiJoin_, address keg_) public {
+        wards[msg.sender] = 1;
+        vat = VatLike(vat_);
+        flapper = FlapLike(flapper_);
+        daiJoin = DaiJoinLike(daiJoin_);
+        live = 1;
+    }
+
+    // --- Math ---
+    function sub(uint256 x, uint256 y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
+
+    function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+
+    function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
+        require(live == 1, "FlapTap/not-live");
+        uint256 beer = mul(lot, flow) / RAD;
+    	vat.move(msg.sender, address(this), lot);
+        daiJoin.exit(address(this), beer);
+        DaiLike(daiJoin.dai()).approve(address(keg), beer);
+        keg.pour(flight, beer);
+        return flapper.kick(sub(lot, beer * RAY), bid);
+    }
+
+    function cage(uint256 rad) external note auth {
+        require(live == 1, "FlapTap/not-live");
+        flapper.cage(rad);
+        vat.move(address(this), msg.sender, rad);
+    }
+
+    // --- Administration ---
+    function file(bytes32 what, address addr) external note auth {
+    	if (what == "vat") vat = VatLike(addr);
+    	else if (what == "vow") flapper = FlapLike(addr);
+    	else if (what == "keg") keg = KegLike(addr);
+    	else revert("FlapTap/file-unrecognized-param");
+    }
+    function file(bytes32 what, bytes32 data) external note auth {
+    	if (what == "flight") flight = data;
+    	else revert("FlapTap/file-unrecognized-param");
+    }
+    function file(bytes32 what, uint256 data) external note auth {
+    	if (what == "flow") require((flow = data) <= WAD, "FlapTap/invalid-flow");
+    	else revert("FlapTap/file-unrecognized-param");
+    }
+
+}
+
 // Keg controls payouts
 contract Keg is LibNote {
 

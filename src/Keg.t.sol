@@ -24,8 +24,6 @@ import {DaiJoin} from "dss/join.sol";
 import {Dai} from "dss/dai.sol";
 
 import "./Keg.sol";
-import "./Tap.sol";
-import "./FlapTap.sol";
 
 contract Hevm { function warp(uint) public; }
 
@@ -91,9 +89,9 @@ contract KegTest is DSTest, DSMath {
     FlapTap flapTap;
     TestFlapper flapper;
 
-    User user1  = new User(keg);
-    User user2  = new User(keg);
-    User user3  = new User(keg);
+    User user1;
+    User user2;
+    User user3;
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
@@ -118,6 +116,10 @@ contract KegTest is DSTest, DSMath {
         flapper = new TestFlapper(address(vat));
 
         keg = new Keg(address(dai));
+
+        user1 = new User(keg);
+        user2 = new User(keg);
+        user3 = new User(keg);
     }
 
     function test_keg_deploy() public {
@@ -325,5 +327,7 @@ contract KegTest is DSTest, DSMath {
     function test_chug_as_bud() public {
         //how does one become a different user - hevm hack?
     }
+
+    // TODO add tests for Tap, FlapTap and preset payouts
     
 }
