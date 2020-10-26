@@ -46,12 +46,12 @@ contract LibNote {
     }
 }
 
-contract VatLike {
-	function suck(address, address, uint) external;
-    function move(address, address, uint) external;
-    function dai(address) external view returns (uint);
+interface IERC20 {
+    function transfer(address,uint256) external returns (bool);
+    function transferFrom(address,address,uint256) external returns (bool);
 }
 
+// Keg controls payouts
 contract Keg is LibNote {
 
     struct Pint {
@@ -64,7 +64,7 @@ contract Keg is LibNote {
     }
 
 	// --- Auth ---
-    mapping (address => uint) public wards;
+    mapping (address => uint256) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; emit NewBrewMaster(usr); }
     function deny(address usr) external note auth { wards[usr] = 0; emit RetiredBrewMaster(usr); }
     modifier auth {
@@ -73,15 +73,15 @@ contract Keg is LibNote {
     }
 
     // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
 
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
 
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -91,23 +91,21 @@ contract Keg is LibNote {
     function start() external note auth { stopped = 0; }
     modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
 
-    VatLike 	public vat;
-    address 	public vow;
+    IERC20 public token;
 
-    uint public beer; // Total encumbered funds (Available for people to withdraw)
+    uint256 public beer; // Total encumbered funds (Available for people to withdraw)
 
     uint256 constant WAD = 10 ** 18;
-    uint256 constant RAY = 10 ** 27;
 
     // Accounting for tracking users availale balances
-    mapping (address => uint) public mugs;
+    mapping (address => uint256) public mugs;
 
     // Two-way mapping tracks delegates
     mapping (address => address) public pals;   // Delegate -> Original
     mapping (address => address) public buds;   // Original -> Delegate
 
     // Define payout ratios
-    mapping (address => Flight) public flights;
+    mapping (bytes32 => Flight) public flights;
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
@@ -118,54 +116,49 @@ contract Keg is LibNote {
     event ByeFelicia(address indexed owner, address bud);
     event JustASip(address bum, uint256 beer);
     event DownTheHatch(address bum, uint256 beer);
+    event OrdersUp(bytes32 flight);
+    event OrderRevoked(bytes32 flight);
 
-    constructor(address vat_, address vow_) public {
+    constructor(address token_) public {
         wards[msg.sender] = 1;
-        vat = VatLike(vat_);
-        vow = vow_;
+        token = IERC20(token_);
         beer = 0;
     }
 
-    // Suck from the vat to the keg to allow for a pool of funds
-    function brew(uint wad) external note auth stoppable {
-    	vat.suck(address(vow), address(this), mul(wad, RAY));
-        emit BrewBeer(wad);
-    }
-
     // Credits people with rights to withdraw funds from the pool
-    function pour(address[] calldata bums, uint[] calldata wad) external note auth stoppable {
+    function pour(address[] calldata bums, uint256[] calldata wad) external note stoppable {
         require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
         require(bums.length > 0, "Keg/no-bums");
-        uint suds = 0;
-        for (uint i = 0; i < wad.length; i++) {
+        uint256 suds = 0;
+        for (uint256 i = 0; i < wad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
             suds          = add(suds, wad[i]);
             emit PourBeer(bums[i], wad[i]);
         }
+        require(token.transferFrom(msg.sender, address(this), suds), "Keg/insufficient-tokens");
         beer = add(beer, suds);
-        require(vat.dai(address(this)) == mul(beer, RAY), "Keg/pour-not-equal-to-brew");
     }
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
-    function pour(uint256 wad) external note stoppable {
-        require(flights[msg.sender].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
-    	vat.suck(address(vow), address(this), mul(wad, RAY));
+    function pour(bytes32 flight, uint256 wad) external note stoppable {
+        require(flights[flight].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
         
         uint256 suds = 0;
-        for (uint256 i = 0; i < flights[msg.sender].numPints; i++) {
+        for (uint256 i = 0; i < flights[flight].numPints; i++) {
             uint256 sud;
-            if (i == flights[msg.sender].numPints - 1) {
+            if (i == flights[flight].numPints - 1) {
                 // Add whatevers left over to the last mug to account for rounding errors
                 sud = sub(wad, suds);
             } else {
                 // Otherwise use the share amount
-                sud = mul(wad, flights[msg.sender].pints[i].share) / WAD;
+                sud = mul(wad, flights[flight].pints[i].share) / WAD;
             }
-            mugs[flights[msg.sender].pints[i].mug] = add(mugs[flights[msg.sender].pints[i].mug], sud);
+            mugs[flights[flight].pints[i].mug] = add(mugs[flights[flight].pints[i].mug], sud);
             suds = add(suds, sud);
-            emit PourBeer(flights[msg.sender].pints[i].mug, sud);
+            emit PourBeer(flights[flight].pints[i].mug, sud);
         }
+        require(token.transferFrom(msg.sender, address(this), suds), "Keg/insufficient-tokens");
         beer = add(beer, suds);
     }
 
@@ -192,13 +185,13 @@ contract Keg is LibNote {
 
     // User withdraws all funds
     function chug() external {
-        uint pint = mugs[msg.sender] + mugs[pals[msg.sender]];
+        uint256 pint = mugs[msg.sender] + mugs[pals[msg.sender]];
         require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
         beer = sub(beer, pint);
         mugs[msg.sender] = 0;
         mugs[pals[msg.sender]] = 0;
 
-        vat.move(address(this), msg.sender, mul(pint, RAY));
+        token.transfer(msg.sender, pint);
         emit DownTheHatch(msg.sender, pint);
     }
 
@@ -211,38 +204,37 @@ contract Keg is LibNote {
         mugs[bum] = sub(mugs[bum], wad);
         beer = sub(beer, wad);
 
-        vat.move(address(this), msg.sender, mul(wad, RAY));
+        token.transfer(msg.sender, wad);
         emit JustASip(msg.sender, wad);
     }
 
-    // Authorize a preset flight
-    // TODO: events
-    function addFlight(address source, address[] calldata bums, uint256[] calldata shares) external note auth {
+    // Pre-authorize a flight distribution of funds
+    function serve(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external note auth {
         require(bums.length == shares.length, "Keg/unequal-bums-and-shares");
-        require(source != address(0), "Keg/no-address-0");
+        require(bums.length > 0, "Keg/zero-bums");
 
         // Pints need to add up to 100%
-        flights[source] = Flight({numPints:bums.length});
+        flights[flight] = Flight({numPints:bums.length});
         uint256 total = 0;
         for (uint256 i = 0; i < bums.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             total = add(total, shares[i]);
-            flights[source].pints[i] = Pint(bums[i], shares[i]);
+            flights[flight].pints[i] = Pint(bums[i], shares[i]);
         }
         require(total == WAD, "Keg/invalid-flight");
+        emit OrdersUp(flight);
     }
 
     // Deauthorize a flight
-    // TODO: events
-    function removeFlight(address source) external note auth {
-        require(flights[msg.sender].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
-        delete flights[msg.sender];
+    function revoke(bytes32 flight) external note auth {
+        require(flights[flight].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        delete flights[flight];
+        emit OrderRevoked(flight);
     }
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
-    	if (what == "vat") vat = VatLike(addr);
-    	else if (what == "vow") vow = addr;
+    	if (what == "token") token = IERC20(addr);
     	else revert("Keg/file-unrecognized-param");
     }
 }

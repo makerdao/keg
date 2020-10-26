@@ -20,18 +20,52 @@ pragma solidity >=0.5.15;
 import "ds-test/test.sol";
 import "ds-math/math.sol";
 import "lib/dss-interfaces/src/Interfaces.sol";
+import {DaiJoin} from "dss/join.sol";
+import {Dai} from "dss/dai.sol";
 
 import "./Keg.sol";
+import "./Tap.sol";
+import "./FlapTap.sol";
 
 contract Hevm { function warp(uint) public; }
 
 contract TestVat is DSMath {
+
     mapping (address => uint256) public dai;
-    function suck(address u, address v, uint rad) public { dai[v] = add(dai[v], rad); }
+
+    function mint(address usr, uint rad) public {
+        dai[usr] = add(dai[usr], rad);
+    }
+
+    function suck(address u, address v, uint rad) public {
+        mint(v, rad);
+    }
+
     function move(address src, address dst, uint256 rad) public {
         dai[src] = sub(dai[src], rad);
         dai[dst] = add(dai[dst], rad);
     }
+
+}
+
+contract TestFlapper is DSMath {
+
+    VatAbstract public vat;
+    uint256 public kicks = 0;
+
+    constructor(address vat_) public {
+        vat = VatAbstract(vat_);
+    }
+
+    function kick(uint256 lot, uint256 bid) public returns (uint256 id) {
+        id = ++kicks;
+        vat.move(msg.sender, address(this), lot);
+    }
+
+    function cage(uint256 rad) public {
+        vat.move(address(this), msg.sender, rad);
+    }
+
 }
 
 contract User {
@@ -48,8 +82,14 @@ contract KegTest is DSTest, DSMath {
 
     address constant public MCD_VOW = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF; // Fake address for mocking
 
-    TestVat vat = new TestVat();
-    Keg     keg = new Keg(address(vat), MCD_VOW);
+    address me;
+    TestVat vat;
+    DaiJoin daiJoin;
+    Dai dai;
+    Keg keg;
+    Tap tap;
+    FlapTap flapTap;
+    TestFlapper flapper;
 
     User user1  = new User(keg);
     User user2  = new User(keg);
@@ -66,30 +106,26 @@ contract KegTest is DSTest, DSMath {
 
     function setUp() public {
         hevm = Hevm(address(CHEAT_CODE));
+
+        me = address(this);
+
+        vat = new TestVat();
+        vat.mint(me, 100 * RAD);
+
+        dai = new Dai(0);
+        daiJoin = new DaiJoin(address(vat), address(dai));
+        dai.rely(address(daiJoin));
+        flapper = new TestFlapper(address(vat));
+
+        keg = new Keg(address(dai));
     }
 
     function test_keg_deploy() public {
-        assertEq(keg.wards(address(this)),  1);
-        assertEq(address(keg.vat()),  address(vat));
-        assertEq(keg.vow(), MCD_VOW);
+        assertEq(keg.wards(me),  1);
         assertEq(keg.beer(), 0);
     }
 
-    function test_brew() public {
-        uint wad = 6 ether;
-
-        assertEq(vat.dai(address(keg)), 0);
-        keg.brew(wad);
-        assertEq(vat.dai(address(keg)), wad * RAY);
-    }
-
     function test_pour() public {
-        uint wad = 6 ether;
-
-        assertEq(vat.dai(address(keg)), 0);
-        keg.brew(wad);
-        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
-
         address[] memory users = new address[](2);
         users[0] = address(user1);
         users[1] = address(user2);
@@ -97,39 +133,24 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 1.5 ether;
         amts[1] = 4.5 ether;
 
+        daiJoin.exit(me, 6 ether);
+        dai.approve(address(keg), 6 ether);
+
+        assertEq(dai.balanceOf(address(keg)), 0);
         assertEq(keg.beer(), 0);
         assertEq(keg.mugs(address(user1)), 0);
         assertEq(keg.mugs(address(user2)), 0);
         keg.pour(users, amts);
+        assertEq(dai.balanceOf(address(keg)), 6 ether); // 6 DAI
         assertEq(keg.beer(), amts[0] + amts[1]); // Beer = 6
         assertEq(keg.mugs(address(user1)), amts[0]);     // Mug1 = 1.5
         assertEq(keg.mugs(address(user2)), amts[1]);     // Mug2 = 4.5
-        assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 6 DAI
-    }
-
-    function testFail_pour_unequal_to_brew() public {
-        uint wad = 6 ether;
-
-        assertEq(vat.dai(address(keg)), 0);
-        keg.brew(wad);
-        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
-
-        address[] memory users = new address[](2);
-        users[0] = address(user1);
-        users[1] = address(user2);
-        uint256[] memory amts = new uint256[](2);
-        amts[0] = 1.5 ether;
-        amts[1] = 4.499 ether;
-
-        keg.pour(users, amts);
+        assertEq(dai.balanceOf(address(keg)), keg.beer()); // Beer = 6 DAI
     }
 
     function testFail_pour_unequal_length() public {
-        uint wad = 6 ether;
-
-        assertEq(vat.dai(address(keg)), 0);
-        keg.brew(wad);
-        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
+        daiJoin.exit(me, 6 ether);
+        dai.approve(address(keg), 6 ether);
 
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -141,23 +162,14 @@ contract KegTest is DSTest, DSMath {
     }
 
     function testFail_pour_zero_length() public {
-        uint wad = 6 ether;
-
-        assertEq(vat.dai(address(keg)), 0);
-        keg.brew(wad);
-        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
-
         address[] memory users = new address[](0);
         uint256[] memory amts = new uint256[](0);
         keg.pour(users, amts);
     }
 
     function testFail_pour_zero_address() public {
-        uint wad = 6 ether;
-
-        assertEq(vat.dai(address(keg)), 0);
-        keg.brew(wad);
-        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
+        daiJoin.exit(me, 1.5 ether);
+        dai.approve(address(keg), 1.5 ether);
 
         address[] memory users = new address[](2);
         users[0] = address(0);
@@ -167,12 +179,8 @@ contract KegTest is DSTest, DSMath {
     }
 
     function test_chug() public {
-        uint wad = 6 ether;
-        assertEq(vat.dai(address(keg)), 0);
-
-        keg.brew(wad); // 6 DAI brewed
-
-        assertEq(vat.dai(address(keg)), wad * RAY); // 6 DAI
+        daiJoin.exit(me, 6 ether);
+        dai.approve(address(keg), 6 ether);
 
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -191,27 +199,23 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(address(user1)), amts[0]);     // Mug1 = 1.5
         assertEq(keg.mugs(address(user2)), amts[1]);     // Mug2 = 4.5
 
-        assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 6 DAI
-        assertEq(vat.dai(address(user1)), 0);
-        assertEq(vat.dai(address(user2)), 0);
+        assertEq(dai.balanceOf(address(keg)), keg.beer()); // Beer = 6 DAI
+        assertEq(dai.balanceOf(address(user1)), 0);
+        assertEq(dai.balanceOf(address(user2)), 0);
         
         user1.chug(); // msg.sender == address(user1)
 
         assertEq(keg.beer(), amts[1]);       // Beer = 4.5
         assertEq(keg.mugs(address(user1)), 0);       // Mug1 = 0
         assertEq(keg.mugs(address(user2)), amts[1]); // Mug2 = 4.5
-        assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 4.5 DAI
-        assertEq(vat.dai(address(user1)), 1.5 ether * RAY); // 1.5 DAI
-        assertEq(vat.dai(address(user2)), 0);
+        assertEq(dai.balanceOf(address(keg)), keg.beer()); // Beer = 4.5 DAI
+        assertEq(dai.balanceOf(address(user1)), 1.5 ether); // 1.5 DAI
+        assertEq(dai.balanceOf(address(user2)), 0);
     }
 
     function test_sip() public {
-        uint wad = 6 ether; // 6 DAI brewed
-        assertEq(vat.dai(address(keg)), 0);
-
-        keg.brew(wad);
-
-        assertEq(vat.dai(address(keg)), wad * RAY);
+        daiJoin.exit(me, 6 ether);
+        dai.approve(address(keg), 6 ether);
 
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -230,27 +234,23 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(address(user1)), amts[0]);     // Mug1 = 1.5
         assertEq(keg.mugs(address(user2)), amts[1]);     // Mug2 = 4.5
 
-        assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 6 DAI
-        assertEq(vat.dai(address(user1)), 0);
-        assertEq(vat.dai(address(user2)), 0);
+        assertEq(dai.balanceOf(address(keg)), keg.beer()); // Beer = 6 DAI
+        assertEq(dai.balanceOf(address(user1)), 0);
+        assertEq(dai.balanceOf(address(user2)), 0);
         
         user1.sip(1 ether); // msg.sender == address(user1)
 
         assertEq(keg.beer(), 5 ether);         // Beer = 5
         assertEq(keg.mugs(address(user1)), 0.5 ether); // Mug1 = 0.5
         assertEq(keg.mugs(address(user2)), amts[1]);   // Mug2 = 4.5
-        assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 5 DAI
-        assertEq(vat.dai(address(user1)), 1 ether * RAY); // 1 DAI
-        assertEq(vat.dai(address(user2)), 0);
+        assertEq(dai.balanceOf(address(keg)), keg.beer()); // Beer = 5 DAI
+        assertEq(dai.balanceOf(address(user1)), 1 ether); // 1 DAI
+        assertEq(dai.balanceOf(address(user2)), 0);
     }
 
     function testFail_sip_too_big() public {
-        uint wad = 6 ether; // 6 DAI brewed
-        assertEq(vat.dai(address(keg)), 0);
-
-        keg.brew(wad);
-
-        assertEq(vat.dai(address(keg)), wad * RAY);
+        daiJoin.exit(me, 6 ether);
+        dai.approve(address(keg), 6 ether);
 
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -269,9 +269,9 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(address(user1)), amts[0]);     // Mug1 = 1.5
         assertEq(keg.mugs(address(user2)), amts[1]);     // Mug2 = 4.5
 
-        assertEq(vat.dai(address(keg)), keg.beer() * RAY); // Beer = 6 DAI
-        assertEq(vat.dai(address(user1)), 0);
-        assertEq(vat.dai(address(user2)), 0);
+        assertEq(dai.balanceOf(address(keg)), keg.beer()); // Beer = 6 DAI
+        assertEq(dai.balanceOf(address(user1)), 0);
+        assertEq(dai.balanceOf(address(user2)), 0);
         
         user1.sip(2 ether); // msg.sender == address(user1)
     }
