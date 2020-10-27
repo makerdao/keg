@@ -579,6 +579,35 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(address(user3)), wad - ((wad * 0.65 ether / WAD) + (wad * 0.25 ether / WAD)));
     }
 
+    function testFail_tap_rate_change_without_pump() public {
+        address[] memory users = new address[](3);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        users[2] = address(user3);
+        uint256[] memory amts = new uint256[](3);
+        amts[0] = 0.65 ether;   // 65% split
+        amts[1] = 0.25 ether;   // 25% split
+        amts[2] = 0.10 ether;   // 10% split
+        keg.serve(tap.flight(), users, amts);
+        hevm.warp(1 days + 1);
+        tap.file("rate", uint256(2 ether) / 1 days);
+    }
+
+    function test_tap_rate_change_with_pump() public {
+        address[] memory users = new address[](3);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        users[2] = address(user3);
+        uint256[] memory amts = new uint256[](3);
+        amts[0] = 0.65 ether;   // 65% split
+        amts[1] = 0.25 ether;   // 25% split
+        amts[2] = 0.10 ether;   // 10% split
+        keg.serve(tap.flight(), users, amts);
+        hevm.warp(1 days + 1);
+        tap.pump();
+        tap.file("rate", uint256(2 ether) / 1 days);
+    }
+
     function test_flap_tap_deploy() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
