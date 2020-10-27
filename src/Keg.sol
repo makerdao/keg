@@ -83,7 +83,7 @@ contract Tap is LibNote {
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-        require(wards[msg.sender] == 1, "Keg/not-authorized");
+        require(wards[msg.sender] == 1, "Tap/not-authorized");
         _;
     }
 
@@ -91,7 +91,7 @@ contract Tap is LibNote {
     uint256 public stopped;
     function stop() external note auth { stopped = 1; }
     function start() external note auth { stopped = 0; }
-    modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
+    modifier stoppable { require(stopped == 0, "Tap/is-stopped"); _; }
 
     VatLike public vat;
     address public vow;
@@ -104,12 +104,14 @@ contract Tap is LibNote {
 
     uint256 constant RAY = 10 ** 27;
 
-    constructor(address vat_, address vow_, address daiJoin_, address keg_) public {
+    constructor(address vat_, address vow_, address daiJoin_, address keg_, bytes32 flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         vow = vow_;
         daiJoin = DaiJoinLike(daiJoin_);
-        rate = 0;
+        keg = KegLike(keg_);
+        flight = flight_;
+        rate = rate_;
         rho = now;
     }
 
@@ -121,10 +123,12 @@ contract Tap is LibNote {
     function pump() external note stoppable {
         require(now >= rho, "Tap/invalid-now");
         uint256 wad = mul(now - rho, rate);
-    	vat.suck(address(vow), address(this), wad * RAY);
-        daiJoin.exit(address(this), wad);
-        DaiLike(daiJoin.dai()).approve(address(keg), wad);
-        keg.pour(flight, wad);
+        if (wad > 0) {
+            vat.suck(address(vow), address(this), wad * RAY);
+            daiJoin.exit(address(this), wad);
+            DaiLike(daiJoin.dai()).approve(address(keg), wad);
+            keg.pour(flight, wad);
+        }
         rho = now;
     }
 
@@ -157,7 +161,7 @@ contract FlapTap is LibNote, FlapLike {
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-        require(wards[msg.sender] == 1, "Keg/not-authorized");
+        require(wards[msg.sender] == 1, "FlapTap/not-authorized");
         _;
     }
 
@@ -174,11 +178,14 @@ contract FlapTap is LibNote, FlapLike {
     uint256 constant RAY = 10 ** 27;
     uint256 constant RAD = 10 ** 45;
 
-    constructor(address vat_, address flapper_, address daiJoin_, address keg_) public {
+    constructor(address vat_, address flapper_, address daiJoin_, address keg_, bytes32 flight_, uint256 flow_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         flapper = FlapLike(flapper_);
         daiJoin = DaiJoinLike(daiJoin_);
+        keg = KegLike(keg_);
+        flight = flight_;
+        require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
         live = 1;
     }
 
@@ -313,8 +320,9 @@ contract Keg is LibNote {
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
     function pour(bytes32 flight, uint256 wad) external note stoppable {
+        require(wad > 0, "Keg/wad-zero");
         uint256 npints = pints[flight];
-        require(npints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        require(npints > 0, "Keg/flight-not-set");       // numPints will be empty when not set
         
         uint256 suds = 0;
         for (uint256 i = 0; i < npints; i++) {
@@ -400,7 +408,7 @@ contract Keg is LibNote {
 
     // Deauthorize a flight
     function revoke(bytes32 flight) external note auth {
-        require(pints[flight] == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        require(pints[flight] > 0, "Keg/flight-not-set");       // pints will be 0 when not set
         uint256 npints = pints[flight];
         for (uint256 i = 0; i < npints; i++) {
             delete flights[flight][i];

@@ -148,6 +148,8 @@ contract KegTest is DSTest, DSMath {
         vow = new TestVow(address(vat), address(flapper));
 
         keg = new Keg(address(dai));
+        tap = new Tap(address(vat), address(vow), address(daiJoin), address(keg), "operations", uint256(1 ether) / (1 days));
+        flapTap = new FlapTap(address(vat), address(flapper), address(daiJoin), address(keg), "flap", 0.5 ether);
 
         user1 = new User(keg);
         user2 = new User(keg);
@@ -360,7 +362,6 @@ contract KegTest is DSTest, DSMath {
         //how does one become a different user - hevm hack?
     }
 
-    // TODO add tests for Tap, FlapTap and preset payouts
     function test_serve() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -379,6 +380,11 @@ contract KegTest is DSTest, DSMath {
         assertEq(share1, 0.25 ether);
         assertEq(mug2, address(user2));
         assertEq(share2, 0.75 ether);
+        keg.revoke(flight);
+        assertEq(keg.pints(flight), 0);
+        (address mug3, uint256 share3) = keg.flights(flight, 0);
+        assertEq(mug3, address(0));
+        assertEq(share3, 0);
     }
 
     function testFail_serve_bad_shares() public {
@@ -413,6 +419,129 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1 ether;
         keg.serve("flight1", users, amts);
+    }
+
+    function test_pour_flight() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.serve(flight, users, amts);
+        dai.mint(me, 100 ether);
+        dai.approve(address(keg), 10 ether);
+        
+        assertEq(dai.balanceOf(me), 100 ether);
+        assertEq(keg.mugs(address(user1)), 0);
+        assertEq(keg.mugs(address(user2)), 0);
+        keg.pour(flight, 10 ether);
+        assertEq(dai.balanceOf(me), 90 ether);
+        assertEq(keg.mugs(address(user1)), 2.5 ether);
+        assertEq(keg.mugs(address(user2)), 7.5 ether);
+    }
+
+    function testFail_pour_flight_invalid() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        dai.mint(me, 100 ether);
+        dai.approve(address(keg), 10 ether);
+        keg.pour(flight, 10 ether);
+    }
+
+    function testFail_pour_flight_zero() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.serve(flight, users, amts);
+        dai.mint(me, 100 ether);
+        dai.approve(address(keg), 10 ether);
+        keg.pour(flight, 0);
+    }
+
+    function test_pour_flight_one_wei() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.serve(flight, users, amts);
+        dai.mint(me, 100 ether);
+        dai.approve(address(keg), 10 ether);
+        keg.pour(flight, 1);
+
+        // Rules are to give any fractional remainder to the last mug
+        assertEq(keg.mugs(address(user1)), 0);
+        assertEq(keg.mugs(address(user2)), 1);
+        assertEq(dai.balanceOf(me), 100 ether - 1);
+    }
+
+    function testFail_pour_flight_not_enough_dai() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.serve(flight, users, amts);
+        dai.mint(me, 1 ether);
+        dai.approve(address(keg), 10 ether);
+        keg.pour(flight, 10 ether);
+    }
+
+    function testFail_pour_flight_not_enough_approval() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.serve(flight, users, amts);
+        dai.mint(me, 100 ether);
+        dai.approve(address(keg), 1 ether);
+        keg.pour(flight, 10 ether);
+    }
+
+    function test_tap() public {
+        address[] memory users = new address[](3);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        users[2] = address(user3);
+        uint256[] memory amts = new uint256[](3);
+        amts[0] = 0.65 ether;   // 65% split
+        amts[1] = 0.25 ether;   // 25% split
+        amts[2] = 0.10 ether;   // 10% split
+        keg.serve(tap.flight(), users, amts);
+        
+        uint256 rate = tap.rate();
+        uint256 wad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 ether
+        hevm.warp(1 days + 1);
+        assertEq(now - tap.rho(), 1 days);
+        tap.pump();
+        assertEq(keg.beer(), wad);
+        assertEq(keg.mugs(address(user1)), wad * 0.65 ether / WAD);
+        assertEq(keg.mugs(address(user2)), wad * 0.25 ether / WAD);
+        assertEq(keg.mugs(address(user3)), wad - ((wad * 0.65 ether / WAD) + (wad * 0.25 ether / WAD)));
     }
     
 }
