@@ -123,18 +123,6 @@ contract Tap is LibNote {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    function pump() external note stoppable {
-        require(now >= rho, "Tap/invalid-now");
-        uint256 wad = mul(now - rho, rate);
-        if (wad > 0) {
-            vat.suck(address(vow), address(this), wad * RAY);
-            daiJoin.exit(address(this), wad);
-            DaiLike(daiJoin.dai()).approve(address(keg), wad);
-            keg.pour(flight, wad);
-        }
-        rho = now;
-    }
-
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
@@ -153,6 +141,17 @@ contract Tap is LibNote {
     	else revert("Tap/file-unrecognized-param");
     }
 
+    function pump() external note stoppable {
+        require(now >= rho, "Tap/invalid-now");
+        uint256 wad = mul(now - rho, rate);
+        if (wad > 0) {
+            vat.suck(address(vow), address(this), wad * RAY);
+            daiJoin.exit(address(this), wad);
+            DaiLike(daiJoin.dai()).approve(address(keg), wad);
+            keg.pour(flight, wad);
+        }
+        rho = now;
+    }
 }
 
 // A modified version of Tap which sits between the vow and the actual flapper.
@@ -203,23 +202,6 @@ contract FlapTap is LibNote, FlapLike {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
-        require(live == 1, "FlapTap/not-live");
-        uint256 beer = mul(lot, flow) / RAD;
-    	vat.move(msg.sender, address(this), lot);
-        daiJoin.exit(address(this), beer);
-        DaiLike(daiJoin.dai()).approve(address(keg), beer);
-        keg.pour(flight, beer);
-        return flapper.kick(sub(lot, beer * RAY), bid);
-    }
-
-    function cage(uint256) external note auth {
-        require(live == 1, "FlapTap/not-live");
-        uint256 rad = vat.dai(address(flapper));
-        flapper.cage(rad);
-        vat.move(address(this), msg.sender, rad);
-    }
-
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
@@ -239,6 +221,22 @@ contract FlapTap is LibNote, FlapLike {
     	else revert("FlapTap/file-unrecognized-param");
     }
 
+    function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
+        require(live == 1, "FlapTap/not-live");
+        uint256 beer = mul(lot, flow) / RAD;
+    	vat.move(msg.sender, address(this), lot);
+        daiJoin.exit(address(this), beer);
+        DaiLike(daiJoin.dai()).approve(address(keg), beer);
+        keg.pour(flight, beer);
+        return flapper.kick(sub(lot, beer * RAY), bid);
+    }
+
+    function cage(uint256) external note auth {
+        require(live == 1, "FlapTap/not-live");
+        uint256 rad = vat.dai(address(flapper));
+        flapper.cage(rad);
+        vat.move(address(this), msg.sender, rad);
+    }
 }
 
 // Keg controls payouts
@@ -269,6 +267,12 @@ contract Keg is LibNote {
 
     function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
+    }
+
+    // --- Administration ---
+    function file(bytes32 what, address addr) external note auth {
+    	if (what == "token") token = IERC20(addr);
+    	else revert("Keg/file-unrecognized-param");
     }
 
     // --- Stop ---
@@ -424,11 +428,5 @@ contract Keg is LibNote {
         }
         delete pints[flight];
         emit OrderRevoked(flight);
-    }
-
-    // --- Administration ---
-    function file(bytes32 what, address addr) external note auth {
-    	if (what == "token") token = IERC20(addr);
-    	else revert("Keg/file-unrecognized-param");
     }
 }
