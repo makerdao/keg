@@ -52,6 +52,8 @@ interface IERC20 {
 }
 
 contract VatLike {
+    function hope(address usr) external;
+    function nope(address usr) external;
 	function suck(address, address, uint256) external;
     function move(address, address, uint256) external;
     function dai(address) external view returns (uint256);
@@ -110,6 +112,7 @@ contract Tap is LibNote {
         vow = vow_;
         daiJoin = DaiJoinLike(daiJoin_);
         keg = KegLike(keg_);
+        vat.hope(daiJoin_);
         flight = flight_;
         rate = rate_;
         rho = now;
@@ -184,6 +187,8 @@ contract FlapTap is LibNote, FlapLike {
         flapper = FlapLike(flapper_);
         daiJoin = DaiJoinLike(daiJoin_);
         keg = KegLike(keg_);
+        vat.hope(flapper_);
+        vat.hope(daiJoin_);
         flight = flight_;
         require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
         live = 1;
@@ -208,8 +213,9 @@ contract FlapTap is LibNote, FlapLike {
         return flapper.kick(sub(lot, beer * RAY), bid);
     }
 
-    function cage(uint256 rad) external note auth {
+    function cage(uint256) external note auth {
         require(live == 1, "FlapTap/not-live");
+        uint256 rad = vat.dai(address(flapper));
         flapper.cage(rad);
         vat.move(address(this), msg.sender, rad);
     }
@@ -217,8 +223,11 @@ contract FlapTap is LibNote, FlapLike {
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
-    	else if (what == "vow") flapper = FlapLike(addr);
-    	else if (what == "keg") keg = KegLike(addr);
+    	else if (what == "vow") {
+            vat.nope(address(flapper));
+            flapper = FlapLike(addr);
+            vat.hope(addr);
+        } else if (what == "keg") keg = KegLike(addr);
     	else revert("FlapTap/file-unrecognized-param");
     }
     function file(bytes32 what, bytes32 data) external note auth {

@@ -29,17 +29,41 @@ contract Hevm { function warp(uint) public; }
 
 contract TestVat is DSMath {
 
+    // --- Auth ---
+    mapping (address => uint) public wards;
+    function rely(address usr) public auth { wards[usr] = 1; }
+    function deny(address usr) public auth { wards[usr] = 0; }
+    modifier auth {
+        require(wards[msg.sender] == 1, "Vat/not-authorized");
+        _;
+    }
+
+    mapping(address => mapping (address => uint)) public can;
+    function hope(address usr) public { can[msg.sender][usr] = 1; }
+    function nope(address usr) public { can[msg.sender][usr] = 0; }
+    function wish(address bit, address usr) internal view returns (bool) {
+        return either(bit == usr, can[bit][usr] == 1);
+    }
+    function either(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := or(x, y)}
+    }
+
     mapping (address => uint256) public dai;
+
+    constructor() public {
+        wards[msg.sender] = 1;
+    }
 
     function mint(address usr, uint rad) public {
         dai[usr] = add(dai[usr], rad);
     }
 
-    function suck(address u, address v, uint rad) public {
+    function suck(address u, address v, uint rad) auth public {
         mint(v, rad);
     }
 
     function move(address src, address dst, uint256 rad) public {
+        require(wish(src, msg.sender), "Vat/not-allowed");
         dai[src] = sub(dai[src], rad);
         dai[dst] = add(dai[dst], rad);
     }
@@ -50,6 +74,7 @@ contract TestFlapper is DSMath {
 
     VatAbstract public vat;
     uint256 public kicks = 0;
+    uint256 public amountAuctioned = 0;
 
     constructor(address vat_) public {
         vat = VatAbstract(vat_);
@@ -57,6 +82,7 @@ contract TestFlapper is DSMath {
 
     function kick(uint256 lot, uint256 bid) public returns (uint256 id) {
         id = ++kicks;
+        amountAuctioned += lot;
         vat.move(msg.sender, address(this), lot);
     }
 
@@ -68,24 +94,30 @@ contract TestFlapper is DSMath {
 
 contract TestVow is DSMath {
 
-    VatAbstract public vat;
+    TestVat public vat;
     FlapAbstract public flapper;
     uint256 public lastId;
+    uint256 public bump = 10000 * 1e45;
 
     constructor(address vat_, address flapper_) public {
-        vat = VatAbstract(vat_);
+        vat = TestVat(vat_);
         flapper = FlapAbstract(flapper_);
+        vat.hope(flapper_);
         lastId = 0;
     }
 
-    function flap() external returns (uint id) {
-        uint256 bump = 10000000000000000000000000000000000000000000000000;
+    function flap() public returns (uint id) {
+        vat.mint(address(this), bump);
         id = flapper.kick(bump, 0);
         require(id == lastId + 1, "failed to increment id");
         lastId = id;
     }
 
-    function file(bytes32 what, address data) external {
+    function cage() public {
+        flapper.cage(vat.dai(address(flapper)));
+    }
+
+    function file(bytes32 what, address data) public {
         if (what == "flapper") {
             vat.nope(address(flapper));
             flapper = FlapAbstract(data);
@@ -144,12 +176,15 @@ contract KegTest is DSTest, DSMath {
         dai = new Dai(0);
         daiJoin = new DaiJoin(address(vat), address(dai));
         dai.rely(address(daiJoin));
+        vat.hope(address(daiJoin));
         flapper = new TestFlapper(address(vat));
         vow = new TestVow(address(vat), address(flapper));
 
         keg = new Keg(address(dai));
         tap = new Tap(address(vat), address(vow), address(daiJoin), address(keg), "operations", uint256(1 ether) / (1 days));
+        vat.rely(address(tap));
         flapTap = new FlapTap(address(vat), address(flapper), address(daiJoin), address(keg), "flap", 0.5 ether);
+        flapTap.rely(address(vow));
 
         user1 = new User(keg);
         user2 = new User(keg);
@@ -522,7 +557,7 @@ contract KegTest is DSTest, DSMath {
         keg.pour(flight, 10 ether);
     }
 
-    function test_tap() public {
+    function test_tap_pump() public {
         address[] memory users = new address[](3);
         users[0] = address(user1);
         users[1] = address(user2);
@@ -542,6 +577,56 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.mugs(address(user1)), wad * 0.65 ether / WAD);
         assertEq(keg.mugs(address(user2)), wad * 0.25 ether / WAD);
         assertEq(keg.mugs(address(user3)), wad - ((wad * 0.65 ether / WAD) + (wad * 0.25 ether / WAD)));
+    }
+
+    function test_flap_tap_deploy() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.50 ether;   // 50% split
+        amts[1] = 0.50 ether;   // 50% split
+        keg.serve(flapTap.flight(), users, amts);
+        
+        assertEq(flapper.kicks(), 0);
+        assertEq(vow.flap(), 1);
+        assertEq(flapper.kicks(), 1);
+        uint256 auctioned = vow.bump();
+        assertEq(flapper.amountAuctioned(), auctioned);
+        assertEq(vat.dai(address(flapper)), auctioned);
+
+        // Insert the TapFlap in between the vow and flapper
+        vow.file("flapper", address(flapTap));
+        
+        assertEq(vow.flap(), 2);
+        assertEq(flapper.kicks(), 2);
+        uint256 beer = flapTap.flow() * vow.bump() / RAD;
+        auctioned += vow.bump() - beer * RAY;
+        assertEq(flapper.amountAuctioned(), auctioned);
+        assertEq(vat.dai(address(flapper)), auctioned);
+        assertEq(keg.beer(), beer);
+        assertEq(keg.mugs(address(user1)), beer / 2);
+        assertEq(keg.mugs(address(user2)), beer / 2);
+    }
+
+    function testFail_flap_tap_invalid_flow() public {
+        flapTap.file("flow", 1.1 ether);
+    }
+
+    function test_flap_tap_cage() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.50 ether;   // 50% split
+        amts[1] = 0.50 ether;   // 50% split
+        keg.serve(flapTap.flight(), users, amts);
+        vow.file("flapper", address(flapTap));
+        vow.flap();
+        vow.cage();
+
+        // All dai should be returned to the vow
+        assertEq(vat.dai(address(vow)), vow.bump() / 2);
     }
     
 }
