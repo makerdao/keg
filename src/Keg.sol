@@ -123,18 +123,6 @@ contract Tap is LibNote {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    function pump() external note stoppable {
-        require(now >= rho, "Tap/invalid-now");
-        uint256 wad = mul(now - rho, rate);
-        if (wad > 0) {
-            vat.suck(address(vow), address(this), wad * RAY);
-            daiJoin.exit(address(this), wad);
-            DaiLike(daiJoin.dai()).approve(address(keg), wad);
-            keg.pour(flight, wad);
-        }
-        rho = now;
-    }
-
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
@@ -153,6 +141,17 @@ contract Tap is LibNote {
     	else revert("Tap/file-unrecognized-param");
     }
 
+    function pump() external note stoppable {
+        require(now >= rho, "Tap/invalid-now");
+        uint256 wad = mul(now - rho, rate);
+        if (wad > 0) {
+            vat.suck(address(vow), address(this), wad * RAY);
+            daiJoin.exit(address(this), wad);
+            DaiLike(daiJoin.dai()).approve(address(keg), wad);
+            keg.pour(flight, wad);
+        }
+        rho = now;
+    }
 }
 
 // A modified version of Tap which sits between the vow and the actual flapper.
@@ -203,23 +202,6 @@ contract FlapTap is LibNote, FlapLike {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
-        require(live == 1, "FlapTap/not-live");
-        uint256 beer = mul(lot, flow) / RAD;
-    	vat.move(msg.sender, address(this), lot);
-        daiJoin.exit(address(this), beer);
-        DaiLike(daiJoin.dai()).approve(address(keg), beer);
-        keg.pour(flight, beer);
-        return flapper.kick(sub(lot, beer * RAY), bid);
-    }
-
-    function cage(uint256) external note auth {
-        require(live == 1, "FlapTap/not-live");
-        uint256 rad = vat.dai(address(flapper));
-        flapper.cage(rad);
-        vat.move(address(this), msg.sender, rad);
-    }
-
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
@@ -239,6 +221,22 @@ contract FlapTap is LibNote, FlapLike {
     	else revert("FlapTap/file-unrecognized-param");
     }
 
+    function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
+        require(live == 1, "FlapTap/not-live");
+        uint256 beer = mul(lot, flow) / RAD;
+    	vat.move(msg.sender, address(this), lot);
+        daiJoin.exit(address(this), beer);
+        DaiLike(daiJoin.dai()).approve(address(keg), beer);
+        keg.pour(flight, beer);
+        return flapper.kick(sub(lot, beer * RAY), bid);
+    }
+
+    function cage(uint256) external note auth {
+        require(live == 1, "FlapTap/not-live");
+        uint256 rad = vat.dai(address(flapper));
+        flapper.cage(rad);
+        vat.move(address(this), msg.sender, rad);
+    }
 }
 
 // Keg controls payouts
@@ -271,6 +269,12 @@ contract Keg is LibNote {
         require(y == 0 || (z = x * y) / y == x);
     }
 
+    // --- Administration ---
+    function file(bytes32 what, address addr) external note auth {
+    	if (what == "token") token = IERC20(addr);
+    	else revert("Keg/file-unrecognized-param");
+    }
+
     // --- Stop ---
     uint256 public stopped;
     function stop() external note auth { stopped = 1; }
@@ -291,8 +295,7 @@ contract Keg is LibNote {
     mapping (address => address) public buds;   // Original -> Delegate
 
     // Define payout ratios
-    mapping (bytes32 => uint256) public pints;                          // Number of pints
-    mapping (bytes32 => mapping(uint256 => Pint)) public flights;       // The Pint definitions
+    mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
@@ -329,20 +332,21 @@ contract Keg is LibNote {
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
     function pour(bytes32 flight, uint256 wad) external note stoppable {
+        Pint[] memory pints = flights[flight];
+
         require(wad > 0, "Keg/wad-zero");
-        uint256 npints = pints[flight];
-        require(npints > 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        require(pints.length > 0, "Keg/flight-not-set");       // numPints will be empty when not set
         
         uint256 suds = 0;
-        for (uint256 i = 0; i < npints; i++) {
-            Pint memory pint = flights[flight][i];
+        for (uint256 i = 0; i < pints.length; i++) {
+            Pint memory pint = pints[i];
             uint256 sud;
-            if (i == npints - 1) {
+            if (i == pints.length - 1) {
                 // Add whatevers left over to the last mug to account for rounding errors
                 sud = sub(wad, suds);
             } else {
                 // Otherwise use the share amount
-                sud = mul(wad, flights[flight][i].share) / WAD;
+                sud = mul(wad, pints[i].share) / WAD;
             }
             mugs[pint.mug] = add(mugs[pint.mug], sud);
             suds = add(suds, sud);
@@ -404,12 +408,12 @@ contract Keg is LibNote {
         require(bums.length > 0, "Keg/zero-bums");
 
         // Pints need to add up to 100%
-        pints[flight] = bums.length;
+        // pints[flight] = bums.length;
         uint256 total = 0;
         for (uint256 i = 0; i < bums.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             total = add(total, shares[i]);
-            flights[flight][i] = Pint(bums[i], shares[i]);
+            flights[flight].push(Pint(bums[i], shares[i]));
         }
         require(total == WAD, "Keg/invalid-flight");
         emit OrdersUp(flight);
@@ -417,18 +421,10 @@ contract Keg is LibNote {
 
     // Deauthorize a flight
     function revoke(bytes32 flight) external note auth {
-        require(pints[flight] > 0, "Keg/flight-not-set");       // pints will be 0 when not set
-        uint256 npints = pints[flight];
-        for (uint256 i = 0; i < npints; i++) {
+        require(flights[flight].length > 0, "Keg/flight-not-set");       // pints will be 0 when not set
+        for (uint256 i = 0; i < flights[flight].length; i++) {
             delete flights[flight][i];
         }
-        delete pints[flight];
         emit OrderRevoked(flight);
-    }
-
-    // --- Administration ---
-    function file(bytes32 what, address addr) external note auth {
-    	if (what == "token") token = IERC20(addr);
-    	else revert("Keg/file-unrecognized-param");
     }
 }

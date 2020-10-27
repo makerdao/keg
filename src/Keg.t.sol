@@ -406,9 +406,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "flight1";
 
-        assertEq(keg.pints(flight), 0);
         keg.serve(flight, users, amts);
-        assertEq(keg.pints(flight), 2);
         (address mug1, uint256 share1) = keg.flights(flight, 0);
         (address mug2, uint256 share2) = keg.flights(flight, 1);
         assertEq(mug1, address(user1));
@@ -416,7 +414,6 @@ contract KegTest is DSTest, DSMath {
         assertEq(mug2, address(user2));
         assertEq(share2, 0.75 ether);
         keg.revoke(flight);
-        assertEq(keg.pints(flight), 0);
         (address mug3, uint256 share3) = keg.flights(flight, 0);
         assertEq(mug3, address(0));
         assertEq(share3, 0);
