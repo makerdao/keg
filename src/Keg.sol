@@ -69,7 +69,7 @@ contract DaiJoinLike {
 }
 
 contract KegLike {
-	function pour(bytes32 flight, uint256 wad) external;
+	function pour(bytes32 flight, uint256 rad) external;
 }
 
 interface FlapLike {
@@ -97,22 +97,20 @@ contract Tap is LibNote {
 
     VatLike public vat;
     address public vow;
-    DaiJoinLike public daiJoin;
     KegLike public keg;
 
     bytes32 public flight;  // The target flight in keg
-    uint256 public rate;    // The per-second rate of distributing funds [wad]
+    uint256 public rate;    // The per-second rate of distributing funds [rad]
     uint256 public rho;     // Time of last pump [unix epoch time]
 
     uint256 constant RAY = 10 ** 27;
 
-    constructor(address vat_, address vow_, address daiJoin_, address keg_, bytes32 flight_, uint256 rate_) public {
+    constructor(address vat_, address vow_, address keg_, bytes32 flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         vow = vow_;
-        daiJoin = DaiJoinLike(daiJoin_);
         keg = KegLike(keg_);
-        vat.hope(daiJoin_);
+        vat.hope(keg_);
         flight = flight_;
         rate = rate_;
         rho = now;
@@ -127,8 +125,11 @@ contract Tap is LibNote {
     function file(bytes32 what, address addr) external note auth {
     	if (what == "vat") vat = VatLike(addr);
     	else if (what == "vow") vow = addr;
-    	else if (what == "keg") keg = KegLike(addr);
-    	else revert("Tap/file-unrecognized-param");
+    	else if (what == "keg") {
+            vat.nope(address(keg));
+            keg = KegLike(addr);
+            vat.hope(addr);
+        } else revert("Tap/file-unrecognized-param");
     }
     function file(bytes32 what, bytes32 data) external note auth {
         require(now == rho, "Tap/rho-not-updated");
@@ -143,12 +144,10 @@ contract Tap is LibNote {
 
     function pump() external note stoppable {
         require(now >= rho, "Tap/invalid-now");
-        uint256 wad = mul(now - rho, rate);
-        if (wad > 0) {
-            vat.suck(address(vow), address(this), wad * RAY);
-            daiJoin.exit(address(this), wad);
-            DaiLike(daiJoin.dai()).approve(address(keg), wad);
-            keg.pour(flight, wad);
+        uint256 rad = mul(now - rho, rate);
+        if (rad > 0) {
+            vat.suck(address(vow), address(this), rad);
+            keg.pour(flight, rad);
         }
         rho = now;
     }
@@ -169,7 +168,6 @@ contract FlapTap is LibNote, FlapLike {
 
     VatLike public vat;
     FlapLike public flapper;
-    DaiJoinLike public daiJoin;
     KegLike public keg;
     uint256  public live;   // Active Flag
 
@@ -177,17 +175,14 @@ contract FlapTap is LibNote, FlapLike {
     uint256 public flow;    // The fraction of the lot which goes to the keg [wad]
 
     uint256 constant WAD = 10 ** 18;
-    uint256 constant RAY = 10 ** 27;
-    uint256 constant RAD = 10 ** 45;
 
-    constructor(address vat_, address flapper_, address daiJoin_, address keg_, bytes32 flight_, uint256 flow_) public {
+    constructor(address vat_, address flapper_, address keg_, bytes32 flight_, uint256 flow_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
         flapper = FlapLike(flapper_);
-        daiJoin = DaiJoinLike(daiJoin_);
         keg = KegLike(keg_);
         vat.hope(flapper_);
-        vat.hope(daiJoin_);
+        vat.hope(keg_);
         flight = flight_;
         require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
         live = 1;
@@ -209,8 +204,11 @@ contract FlapTap is LibNote, FlapLike {
             vat.nope(address(flapper));
             flapper = FlapLike(addr);
             vat.hope(addr);
-        } else if (what == "keg") keg = KegLike(addr);
-    	else revert("FlapTap/file-unrecognized-param");
+        } else if (what == "keg") {
+            vat.nope(address(keg));
+            keg = KegLike(addr);
+            vat.hope(addr);
+        } else revert("FlapTap/file-unrecognized-param");
     }
     function file(bytes32 what, bytes32 data) external note auth {
     	if (what == "flight") flight = data;
@@ -223,12 +221,10 @@ contract FlapTap is LibNote, FlapLike {
 
     function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
         require(live == 1, "FlapTap/not-live");
-        uint256 beer = mul(lot, flow) / RAD;
+        uint256 beer = mul(lot, flow) / WAD;
     	vat.move(msg.sender, address(this), lot);
-        daiJoin.exit(address(this), beer);
-        DaiLike(daiJoin.dai()).approve(address(keg), beer);
         keg.pour(flight, beer);
-        return flapper.kick(sub(lot, beer * RAY), bid);
+        return flapper.kick(sub(lot, beer), bid);
     }
 
     function cage(uint256) external note auth {
@@ -271,7 +267,7 @@ contract Keg is LibNote {
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
-    	if (what == "token") token = IERC20(addr);
+    	if (what == "vat") vat = VatLike(addr);
     	else revert("Keg/file-unrecognized-param");
     }
 
@@ -281,18 +277,9 @@ contract Keg is LibNote {
     function start() external note auth { stopped = 0; }
     modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
 
-    IERC20 public token;
-
-    uint256 public beer; // Total encumbered funds (Available for people to withdraw)
-
     uint256 constant WAD = 10 ** 18;
 
-    // Accounting for tracking users availale balances
-    mapping (address => uint256) public mugs;
-
-    // Two-way mapping tracks delegates
-    mapping (address => address) public pals;   // Delegate -> Original
-    mapping (address => address) public buds;   // Original -> Delegate
+    VatLike public vat;
 
     // Define payout ratios
     mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
@@ -300,41 +287,31 @@ contract Keg is LibNote {
     // --- Events ---
     event NewBrewMaster(address brewmaster);
     event RetiredBrewMaster(address brewmaster);
-    event BrewBeer(uint256 beer);
     event PourBeer(address bartender, uint256 beer);
-    event HoldMyBeerBro(address indexed owner, address bud);
-    event ByeFelicia(address indexed owner, address bud);
-    event JustASip(address bum, uint256 beer);
-    event DownTheHatch(address bum, uint256 beer);
     event OrdersUp(bytes32 flight);
     event OrderRevoked(bytes32 flight);
 
-    constructor(address token_) public {
+    constructor(address vat_) public {
         wards[msg.sender] = 1;
-        token = IERC20(token_);
-        beer = 0;
+        vat = VatLike(vat_);
     }
 
     // Credits people with rights to withdraw funds from the pool
-    function pour(address[] calldata bums, uint256[] calldata wad) external note stoppable {
-        require(bums.length == wad.length, "Keg/unequal-payees-and-amounts");
+    function pour(address[] calldata bums, uint256[] calldata rad) external note stoppable {
+        require(bums.length == rad.length, "Keg/unequal-payees-and-amounts");
         require(bums.length > 0, "Keg/no-bums");
-        uint256 suds = 0;
-        for (uint256 i = 0; i < wad.length; i++) {
+        for (uint256 i = 0; i < rad.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
-            mugs[bums[i]] = add(mugs[bums[i]], wad[i]);
-            suds          = add(suds, wad[i]);
-            emit PourBeer(bums[i], wad[i]);
+            vat.move(msg.sender, bums[i], rad[i]);
+            emit PourBeer(bums[i], rad[i]);
         }
-        require(token.transferFrom(msg.sender, address(this), suds), "Keg/insufficient-tokens");
-        beer = add(beer, suds);
     }
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
-    function pour(bytes32 flight, uint256 wad) external note stoppable {
+    function pour(bytes32 flight, uint256 rad) external note stoppable {
         Pint[] memory pints = flights[flight];
 
-        require(wad > 0, "Keg/wad-zero");
+        require(rad > 0, "Keg/rad-zero");
         require(pints.length > 0, "Keg/flight-not-set");       // numPints will be empty when not set
         
         uint256 suds = 0;
@@ -343,63 +320,15 @@ contract Keg is LibNote {
             uint256 sud;
             if (i == pints.length - 1) {
                 // Add whatevers left over to the last mug to account for rounding errors
-                sud = sub(wad, suds);
+                sud = sub(rad, suds);
             } else {
                 // Otherwise use the share amount
-                sud = mul(wad, pints[i].share) / WAD;
+                sud = mul(rad, pints[i].share) / WAD;
             }
-            mugs[pint.mug] = add(mugs[pint.mug], sud);
             suds = add(suds, sud);
+            vat.move(msg.sender, pint.mug, sud);
             emit PourBeer(pint.mug, sud);
         }
-        require(token.transferFrom(msg.sender, address(this), suds), "Keg/insufficient-tokens");
-        beer = add(beer, suds);
-    }
-
-    // User delegates compensation to another address
-    function pass(address bud) external {
-        require(bud != msg.sender, "Keg/cannot_delegate_to_self");
-        require(pals[bud] == address(0), "Keg/bud-already-has-a-pal");
-        // Remove existing delegate
-        if (buds[msg.sender] != address(0)) yank();
-        // Original addr -> delegated addr
-        buds[msg.sender] = bud;
-        // Delegated addr -> original addr
-        pals[bud] = msg.sender;
-        emit HoldMyBeerBro(msg.sender, bud);
-    }
-
-    // User revokes delegation
-    function yank() public {
-        require(buds[msg.sender] != address(0), "Keg/no-bud");
-        pals[buds[msg.sender]] = address(0);
-        buds[msg.sender] = address(0);
-        emit ByeFelicia(msg.sender, buds[msg.sender]);
-    }
-
-    // User withdraws all funds
-    function chug() external {
-        uint256 pint = mugs[msg.sender] + mugs[pals[msg.sender]];
-        require(pint != uint256(0), "Keg/too-thirsty-not-enough-beer");
-        beer = sub(beer, pint);
-        mugs[msg.sender] = 0;
-        mugs[pals[msg.sender]] = 0;
-
-        token.transfer(msg.sender, pint);
-        emit DownTheHatch(msg.sender, pint);
-    }
-
-    // User withdraws some of their compensation
-    // TODO: Handle case where: mugs[pals[msg.sender]] < wad < (mugs[pals[msg.sender]] + mugs[bum])
-    // TODO: Handle case where: mugs[pals[msg.sender]] == 0 && mugs[msg.sender] > 0
-    function sip(uint256 wad) external {
-        // Whose tab are we drinking on
-        address bum = pals[msg.sender] != address(0) ? pals[msg.sender] : msg.sender;
-        mugs[bum] = sub(mugs[bum], wad);
-        beer = sub(beer, wad);
-
-        token.transfer(msg.sender, wad);
-        emit JustASip(msg.sender, wad);
     }
 
     // Pre-authorize a flight distribution of funds
@@ -427,4 +356,5 @@ contract Keg is LibNote {
         }
         emit OrderRevoked(flight);
     }
+
 }
