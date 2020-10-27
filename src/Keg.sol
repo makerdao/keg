@@ -232,10 +232,6 @@ contract Keg is LibNote {
         address mug;   // Who to pay
         uint256 share; // The fraction of the total amount to pay out [wad]
     }
-    struct Flight {
-        mapping (uint256 => Pint) pints;
-        uint256 numPints;
-    }
 
 	// --- Auth ---
     mapping (address => uint256) public wards;
@@ -279,7 +275,8 @@ contract Keg is LibNote {
     mapping (address => address) public buds;   // Original -> Delegate
 
     // Define payout ratios
-    mapping (bytes32 => Flight) public flights;
+    mapping (bytes32 => uint256) public pints;                          // Number of pints
+    mapping (bytes32 => mapping(uint256 => Pint)) public flights;       // The Pint definitions
 
     // --- Events ---
     event NewBrewMaster(address brewmaster);
@@ -316,21 +313,23 @@ contract Keg is LibNote {
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
     function pour(bytes32 flight, uint256 wad) external note stoppable {
-        require(flights[flight].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        uint256 npints = pints[flight];
+        require(npints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
         
         uint256 suds = 0;
-        for (uint256 i = 0; i < flights[flight].numPints; i++) {
+        for (uint256 i = 0; i < npints; i++) {
+            Pint memory pint = flights[flight][i];
             uint256 sud;
-            if (i == flights[flight].numPints - 1) {
+            if (i == npints - 1) {
                 // Add whatevers left over to the last mug to account for rounding errors
                 sud = sub(wad, suds);
             } else {
                 // Otherwise use the share amount
-                sud = mul(wad, flights[flight].pints[i].share) / WAD;
+                sud = mul(wad, flights[flight][i].share) / WAD;
             }
-            mugs[flights[flight].pints[i].mug] = add(mugs[flights[flight].pints[i].mug], sud);
+            mugs[pint.mug] = add(mugs[pint.mug], sud);
             suds = add(suds, sud);
-            emit PourBeer(flights[flight].pints[i].mug, sud);
+            emit PourBeer(pint.mug, sud);
         }
         require(token.transferFrom(msg.sender, address(this), suds), "Keg/insufficient-tokens");
         beer = add(beer, suds);
@@ -388,12 +387,12 @@ contract Keg is LibNote {
         require(bums.length > 0, "Keg/zero-bums");
 
         // Pints need to add up to 100%
-        flights[flight] = Flight({numPints:bums.length});
+        pints[flight] = bums.length;
         uint256 total = 0;
         for (uint256 i = 0; i < bums.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             total = add(total, shares[i]);
-            flights[flight].pints[i] = Pint(bums[i], shares[i]);
+            flights[flight][i] = Pint(bums[i], shares[i]);
         }
         require(total == WAD, "Keg/invalid-flight");
         emit OrdersUp(flight);
@@ -401,8 +400,12 @@ contract Keg is LibNote {
 
     // Deauthorize a flight
     function revoke(bytes32 flight) external note auth {
-        require(flights[flight].numPints == 0, "Keg/flight-not-set");       // numPints will be empty when not set
-        delete flights[flight];
+        require(pints[flight] == 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        uint256 npints = pints[flight];
+        for (uint256 i = 0; i < npints; i++) {
+            delete flights[flight][i];
+        }
+        delete pints[flight];
         emit OrderRevoked(flight);
     }
 

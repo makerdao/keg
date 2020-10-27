@@ -66,6 +66,36 @@ contract TestFlapper is DSMath {
 
 }
 
+contract TestVow is DSMath {
+
+    VatAbstract public vat;
+    FlapAbstract public flapper;
+    uint256 public lastId;
+
+    constructor(address vat_, address flapper_) public {
+        vat = VatAbstract(vat_);
+        flapper = FlapAbstract(flapper_);
+        lastId = 0;
+    }
+
+    function flap() external returns (uint id) {
+        uint256 bump = 10000000000000000000000000000000000000000000000000;
+        id = flapper.kick(bump, 0);
+        require(id == lastId + 1, "failed to increment id");
+        lastId = id;
+    }
+
+    function file(bytes32 what, address data) external {
+        if (what == "flapper") {
+            vat.nope(address(flapper));
+            flapper = FlapAbstract(data);
+            vat.hope(data);
+        }
+        else revert("Vow/file-unrecognized-param");
+    }
+
+}
+
 contract User {
     Keg public keg;
     constructor(Keg keg_) public       { keg = keg_; }
@@ -88,6 +118,7 @@ contract KegTest is DSTest, DSMath {
     Tap tap;
     FlapTap flapTap;
     TestFlapper flapper;
+    TestVow vow;
 
     User user1;
     User user2;
@@ -114,6 +145,7 @@ contract KegTest is DSTest, DSMath {
         daiJoin = new DaiJoin(address(vat), address(dai));
         dai.rely(address(daiJoin));
         flapper = new TestFlapper(address(vat));
+        vow = new TestVow(address(vat), address(flapper));
 
         keg = new Keg(address(dai));
 
@@ -329,5 +361,58 @@ contract KegTest is DSTest, DSMath {
     }
 
     // TODO add tests for Tap, FlapTap and preset payouts
+    function test_serve() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        assertEq(keg.pints(flight), 0);
+        keg.serve(flight, users, amts);
+        assertEq(keg.pints(flight), 2);
+        (address mug1, uint256 share1) = keg.flights(flight, 0);
+        (address mug2, uint256 share2) = keg.flights(flight, 1);
+        assertEq(mug1, address(user1));
+        assertEq(share1, 0.25 ether);
+        assertEq(mug2, address(user2));
+        assertEq(share2, 0.75 ether);
+    }
+
+    function testFail_serve_bad_shares() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.35 ether;   // 35% split
+        amts[1] = 0.75 ether;   // 75% split
+        keg.serve("flight1", users, amts);
+    }
+
+    function testFail_serve_unequal_length() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1 ether;
+
+        keg.serve("flight1", users, amts);
+    }
+
+    function testFail_serve_zero_length() public {
+        address[] memory users = new address[](0);
+        uint256[] memory amts = new uint256[](0);
+        keg.serve("flight1", users, amts);
+    }
+
+    function testFail_serve_zero_address() public {
+        address[] memory users = new address[](2);
+        users[0] = address(0);
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 1 ether;
+        keg.serve("flight1", users, amts);
+    }
     
 }
