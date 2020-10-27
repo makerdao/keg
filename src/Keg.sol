@@ -46,26 +46,12 @@ contract LibNote {
     }
 }
 
-interface IERC20 {
-    function transfer(address,uint256) external returns (bool);
-    function transferFrom(address,address,uint256) external returns (bool);
-}
-
 contract VatLike {
     function hope(address usr) external;
     function nope(address usr) external;
 	function suck(address, address, uint256) external;
     function move(address, address, uint256) external;
     function dai(address) external view returns (uint256);
-}
-
-contract DaiLike {
-	function approve(address, uint256) external;
-}
-
-contract DaiJoinLike {
-	function dai() external view returns (address);
-	function exit(address, uint256) external;
 }
 
 contract KegLike {
