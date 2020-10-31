@@ -49,13 +49,13 @@ contract LibNote {
 contract VatLike {
     function hope(address usr) external;
     function nope(address usr) external;
-	function suck(address, address, uint256) external;
+    function suck(address, address, uint256) external;
     function move(address, address, uint256) external;
     function dai(address) external view returns (uint256);
 }
 
 contract KegLike {
-	function pour(bytes32 flight, uint256 rad) external;
+    function pour(bytes32 flight, uint256 rad) external;
 }
 
 interface FlapLike {
@@ -66,7 +66,7 @@ interface FlapLike {
 // A tap can suck funds from the vow to fill the keg at a preset rate.
 contract Tap is LibNote {
 
-	// --- Auth ---
+    // --- Auth ---
     mapping (address => uint256) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
@@ -109,9 +109,9 @@ contract Tap is LibNote {
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
-    	if (what == "vat") vat = VatLike(addr);
-    	else if (what == "vow") vow = addr;
-    	else if (what == "keg") {
+        if (what == "vat") vat = VatLike(addr);
+        else if (what == "vow") vow = addr;
+        else if (what == "keg") {
             vat.nope(address(keg));
             keg = KegLike(addr);
             vat.hope(addr);
@@ -119,13 +119,13 @@ contract Tap is LibNote {
     }
     function file(bytes32 what, bytes32 data) external note auth {
         require(now == rho, "Tap/rho-not-updated");
-    	if (what == "flight") flight = data;
-    	else revert("Tap/file-unrecognized-param");
+        if (what == "flight") flight = data;
+        else revert("Tap/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external note auth {
         require(now == rho, "Tap/rho-not-updated");
-    	if (what == "rate") rate = data;
-    	else revert("Tap/file-unrecognized-param");
+        if (what == "rate") rate = data;
+        else revert("Tap/file-unrecognized-param");
     }
 
     function pump() external note stoppable {
@@ -143,7 +143,7 @@ contract Tap is LibNote {
 // Redirects funds to the keg at a preset fractional flow.
 contract FlapTap is LibNote, FlapLike {
 
-	// --- Auth ---
+    // --- Auth ---
     mapping (address => uint256) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
@@ -185,8 +185,8 @@ contract FlapTap is LibNote, FlapLike {
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
-    	if (what == "vat") vat = VatLike(addr);
-    	else if (what == "vow") {
+        if (what == "vat") vat = VatLike(addr);
+        else if (what == "vow") {
             vat.nope(address(flapper));
             flapper = FlapLike(addr);
             vat.hope(addr);
@@ -197,18 +197,18 @@ contract FlapTap is LibNote, FlapLike {
         } else revert("FlapTap/file-unrecognized-param");
     }
     function file(bytes32 what, bytes32 data) external note auth {
-    	if (what == "flight") flight = data;
-    	else revert("FlapTap/file-unrecognized-param");
+        if (what == "flight") flight = data;
+        else revert("FlapTap/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external note auth {
-    	if (what == "flow") require((flow = data) <= WAD, "FlapTap/invalid-flow");
-    	else revert("FlapTap/file-unrecognized-param");
+        if (what == "flow") require((flow = data) <= WAD, "FlapTap/invalid-flow");
+        else revert("FlapTap/file-unrecognized-param");
     }
 
     function kick(uint256 lot, uint256 bid) external note auth returns (uint256) {
         require(live == 1, "FlapTap/not-live");
         uint256 beer = mul(lot, flow) / WAD;
-    	vat.move(msg.sender, address(this), lot);
+        vat.move(msg.sender, address(this), lot);
         keg.pour(flight, beer);
         return flapper.kick(sub(lot, beer), bid);
     }
@@ -218,6 +218,7 @@ contract FlapTap is LibNote, FlapLike {
         uint256 rad = vat.dai(address(flapper));
         flapper.cage(rad);
         vat.move(address(this), msg.sender, rad);
+        live = 0;
     }
 }
 
@@ -225,11 +226,11 @@ contract FlapTap is LibNote, FlapLike {
 contract Keg is LibNote {
 
     struct Pint {
-        address mug;   // Who to pay
+        address seat;  // Who to pay
         uint256 share; // The fraction of the total amount to pay out [wad]
     }
 
-	// --- Auth ---
+    // --- Auth ---
     mapping (address => uint256) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; emit NewBrewMaster(usr); }
     function deny(address usr) external note auth { wards[usr] = 0; emit RetiredBrewMaster(usr); }
@@ -253,8 +254,8 @@ contract Keg is LibNote {
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
-    	if (what == "vat") vat = VatLike(addr);
-    	else revert("Keg/file-unrecognized-param");
+        if (what == "vat") vat = VatLike(addr);
+        else revert("Keg/file-unrecognized-param");
     }
 
     // --- Stop ---
@@ -304,31 +305,30 @@ contract Keg is LibNote {
         for (uint256 i = 0; i < pints.length; i++) {
             Pint memory pint = pints[i];
             uint256 sud;
-            if (i == pints.length - 1) {
-                // Add whatevers left over to the last mug to account for rounding errors
-                sud = sub(rad, suds);
-            } else {
+            if (i != pints.length - 1) {
                 // Otherwise use the share amount
                 sud = mul(rad, pints[i].share) / WAD;
+            } else {
+                // Add whatevers left over to the last mug to account for rounding errors
+                sud = sub(rad, suds);
             }
             suds = add(suds, sud);
-            vat.move(msg.sender, pint.mug, sud);
-            emit PourBeer(pint.mug, sud);
+            vat.move(msg.sender, pint.seat, sud);
+            emit PourBeer(pint.seat, sud);
         }
     }
 
     // Pre-authorize a flight distribution of funds
-    function serve(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external note auth {
-        require(bums.length == shares.length, "Keg/unequal-bums-and-shares");
-        require(bums.length > 0, "Keg/zero-bums");
+    function serve(bytes32 flight, address[] calldata seats, uint256[] calldata shares) external note auth {
+        require(seats.length == shares.length, "Keg/unequal-bums-and-shares");
+        require(seats.length > 0, "Keg/zero-bums");
 
-        // Pints need to add up to 100%
-        // pints[flight] = bums.length;
+        // Pint shares need to add up to 100%
         uint256 total = 0;
-        for (uint256 i = 0; i < bums.length; i++) {
-            require(bums[i] != address(0), "Keg/no-address-0");
+        for (uint256 i = 0; i < seats.length; i++) {
+            require(seats[i] != address(0), "Keg/no-address-0");
             total = add(total, shares[i]);
-            flights[flight].push(Pint(bums[i], shares[i]));
+            flights[flight].push(Pint(seats[i], shares[i]));
         }
         require(total == WAD, "Keg/invalid-flight");
         emit OrdersUp(flight);

@@ -254,8 +254,8 @@ contract KegTest is DSTest, DSMath {
         users[0] = address(user1);
         users[1] = address(user2);
         uint256[] memory amts = new uint256[](2);
-        amts[0] = 0.35 ether;   // 35% split
-        amts[1] = 0.75 ether;   // 75% split
+        amts[0] = 0.25 ether + 1;   // 25% split + 1 wei
+        amts[1] = 0.75 ether;       // 75% split
         keg.serve("flight1", users, amts);
     }
 
