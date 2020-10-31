@@ -227,7 +227,7 @@ contract KegTest is DSTest, DSMath {
         keg.pour(users, amts);
     }
 
-    function test_serve() public {
+    function test_seat() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
         users[1] = address(user2);
@@ -236,7 +236,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "flight1";
 
-        keg.serve(flight, users, amts);
+        keg.seat(flight, users, amts);
         (address mug1, uint256 share1) = keg.flights(flight, 0);
         (address mug2, uint256 share2) = keg.flights(flight, 1);
         assertEq(mug1, address(user1));
@@ -249,38 +249,38 @@ contract KegTest is DSTest, DSMath {
         assertEq(share3, 0);
     }
 
-    function testFail_serve_bad_shares() public {
+    function testFail_seat_bad_shares() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
         users[1] = address(user2);
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether + 1;   // 25% split + 1 wei
         amts[1] = 0.75 ether;       // 75% split
-        keg.serve("flight1", users, amts);
+        keg.seat("flight1", users, amts);
     }
 
-    function testFail_serve_unequal_length() public {
+    function testFail_seat_unequal_length() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
         users[1] = address(user2);
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1 ether;
 
-        keg.serve("flight1", users, amts);
+        keg.seat("flight1", users, amts);
     }
 
-    function testFail_serve_zero_length() public {
+    function testFail_seat_zero_length() public {
         address[] memory users = new address[](0);
         uint256[] memory amts = new uint256[](0);
-        keg.serve("flight1", users, amts);
+        keg.seat("flight1", users, amts);
     }
 
-    function testFail_serve_zero_address() public {
+    function testFail_seat_zero_address() public {
         address[] memory users = new address[](2);
         users[0] = address(0);
         uint256[] memory amts = new uint256[](1);
         amts[0] = 1 ether;
-        keg.serve("flight1", users, amts);
+        keg.seat("flight1", users, amts);
     }
 
     function test_pour_flight() public {
@@ -292,7 +292,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.7 ether;   // 70% split
         bytes32 flight = "flight1";
 
-        keg.serve(flight, users, amts);
+        keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
         
         keg.pour(flight, 10 * RAD);
@@ -323,7 +323,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "flight1";
 
-        keg.serve(flight, users, amts);
+        keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
         keg.pour(flight, 0);
     }
@@ -337,7 +337,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "flight1";
 
-        keg.serve(flight, users, amts);
+        keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
         keg.pour(flight, 1);
 
@@ -356,7 +356,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "flight1";
 
-        keg.serve(flight, users, amts);
+        keg.seat(flight, users, amts);
         vat.mint(me, 1 * RAD);
         keg.pour(flight, 10 * RAD);
     }
@@ -370,7 +370,7 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 0.65 ether;   // 65% split
         amts[1] = 0.25 ether;   // 25% split
         amts[2] = 0.10 ether;   // 10% split
-        keg.serve(tap.flight(), users, amts);
+        keg.seat(tap.flight(), users, amts);
         
         uint256 rate = tap.rate();
         uint256 rad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 rad
@@ -391,7 +391,7 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 0.65 ether;   // 65% split
         amts[1] = 0.25 ether;   // 25% split
         amts[2] = 0.10 ether;   // 10% split
-        keg.serve(tap.flight(), users, amts);
+        keg.seat(tap.flight(), users, amts);
         hevm.warp(1 days + 1);
         tap.file("rate", uint256(2 ether) / 1 days);
     }
@@ -405,7 +405,7 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 0.65 ether;   // 65% split
         amts[1] = 0.25 ether;   // 25% split
         amts[2] = 0.10 ether;   // 10% split
-        keg.serve(tap.flight(), users, amts);
+        keg.seat(tap.flight(), users, amts);
         hevm.warp(1 days + 1);
         tap.pump();
         tap.file("rate", uint256(2 ether) / 1 days);
@@ -418,7 +418,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.50 ether;   // 50% split
         amts[1] = 0.50 ether;   // 50% split
-        keg.serve(flapTap.flight(), users, amts);
+        keg.seat(flapTap.flight(), users, amts);
         
         assertEq(flapper.kicks(), 0);
         assertEq(vow.flap(), 1);
@@ -451,7 +451,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.50 ether;   // 50% split
         amts[1] = 0.50 ether;   // 50% split
-        keg.serve(flapTap.flight(), users, amts);
+        keg.seat(flapTap.flight(), users, amts);
         vow.file("flapper", address(flapTap));
         vow.flap();
         vow.cage();

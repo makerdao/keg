@@ -226,7 +226,7 @@ contract FlapTap is LibNote, FlapLike {
 contract Keg is LibNote {
 
     struct Pint {
-        address seat;  // Who to pay
+        address bum;  // Who to pay
         uint256 share; // The fraction of the total amount to pay out [wad]
     }
 
@@ -313,22 +313,22 @@ contract Keg is LibNote {
                 sud = sub(rad, suds);
             }
             suds = add(suds, sud);
-            vat.move(msg.sender, pint.seat, sud);
-            emit PourBeer(pint.seat, sud);
+            vat.move(msg.sender, pint.bum, sud);
+            emit PourBeer(pint.bum, sud);
         }
     }
 
     // Pre-authorize a flight distribution of funds
-    function serve(bytes32 flight, address[] calldata seats, uint256[] calldata shares) external note auth {
-        require(seats.length == shares.length, "Keg/unequal-bums-and-shares");
-        require(seats.length > 0, "Keg/zero-bums");
+    function seat(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external note auth {
+        require(bums.length == shares.length, "Keg/unequal-bums-and-shares");
+        require(bums.length > 0, "Keg/zero-bums");
 
         // Pint shares need to add up to 100%
         uint256 total = 0;
-        for (uint256 i = 0; i < seats.length; i++) {
-            require(seats[i] != address(0), "Keg/no-address-0");
+        for (uint256 i = 0; i < bums.length; i++) {
+            require(bums[i] != address(0), "Keg/no-address-0");
             total = add(total, shares[i]);
-            flights[flight].push(Pint(seats[i], shares[i]));
+            flights[flight].push(Pint(bums[i], shares[i]));
         }
         require(total == WAD, "Keg/invalid-flight");
         emit OrdersUp(flight);
