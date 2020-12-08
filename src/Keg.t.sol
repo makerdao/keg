@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pragma solidity >=0.5.15;
+pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
 import "ds-math/math.sol";
@@ -24,6 +24,8 @@ import {DaiJoin} from "dss/join.sol";
 import {Dai} from "dss/dai.sol";
 
 import "./Keg.sol";
+import "./Tap.sol";
+import "./FlapTap.sol";
 
 contract Hevm { function warp(uint) public; }
 
