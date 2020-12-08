@@ -18,11 +18,7 @@
 pragma solidity ^0.6.7;
 
 import "dss-interfaces/dss/VatAbstract.sol";
-
-interface KegLike {
-    function vat() external view returns (address);
-    function pour(string flight, uint256 rad) external;
-}
+import "./KegAbstract.sol";
 
 // A tap can suck funds from the vow to fill the keg at a preset rate.
 contract Tap {
@@ -44,7 +40,7 @@ contract Tap {
 
     VatAbstract public immutable vat;
     address public immutable vow;
-    KegLike public immutable keg;
+    KegAbstract public immutable keg;
 
     string public flight;   // The target flight in keg
     uint256 public rate;    // The per-second rate of distributing funds [rad]
@@ -54,8 +50,8 @@ contract Tap {
 
     constructor(address keg_, address vow_, string memory flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
-        KegLike keg__ = keg = KegLike(keg_);
-        VatLike vat__ = vat = VatAbstract(keg__.vat());
+        KegAbstract keg__ = keg = KegAbstract(keg_);
+        VatAbstract vat__ = vat = VatAbstract(keg__.vat());
         vow = vow_;
         vat__.hope(keg_);
         flight = flight_;
@@ -69,7 +65,7 @@ contract Tap {
     }
 
     // --- Administration ---
-    function file(bytes32 what, string memory data) external auth {
+    function file(bytes32 what, string calldata data) external auth {
         require(now == rho, "Tap/rho-not-updated");
         if (what == "flight") flight = data;
         else revert("Tap/file-unrecognized-param");

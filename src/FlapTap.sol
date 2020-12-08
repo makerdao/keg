@@ -19,11 +19,7 @@ pragma solidity ^0.6.7;
 
 import "dss-interfaces/dss/FlapAbstract.sol";
 import "dss-interfaces/dss/VatAbstract.sol";
-
-interface KegLike {
-    function vat() external view returns (address);
-    function pour(string flight, uint256 rad) external;
-}
+import "./KegAbstract.sol";
 
 // A modified version of Tap which sits between the vow and the actual flapper.
 // Redirects funds to the keg at a preset fractional flow.
@@ -40,7 +36,7 @@ contract FlapTap {
 
     VatAbstract public immutable vat;
     FlapAbstract public immutable flapper;
-    KegLike public immutable keg;
+    KegAbstract public immutable keg;
 
     uint256  public live;   // Active Flag
     string public flight;   // The target flight in keg
@@ -48,14 +44,15 @@ contract FlapTap {
 
     uint256 constant WAD = 10 ** 18;
 
-    constructor(address keg_, address flapper_, string memory flight_) public {
+    constructor(address keg_, address flapper_, string memory flight_, uint256 flow_) public {
         wards[msg.sender] = 1;
-        KegLike keg__ = keg = KegLike(keg_);
-        VatAbstract vat__ = vat = VatLike(keg__.vat());
+        KegAbstract keg__ = keg = KegAbstract(keg_);
+        VatAbstract vat__ = vat = VatAbstract(keg__.vat());
         flapper = FlapAbstract(flapper_);
         vat__.hope(flapper_);
         vat__.hope(keg_);
         flight = flight_;
+        require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
         live = 1;
     }
 
@@ -69,7 +66,7 @@ contract FlapTap {
     }
 
     // --- Administration ---
-    function file(bytes32 what, string memory data) external auth {
+    function file(bytes32 what, string calldata data) external auth {
         if (what == "flight") flight = data;
         else revert("FlapTap/file-unrecognized-param");
     }

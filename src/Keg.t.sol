@@ -27,7 +27,7 @@ import "./Keg.sol";
 import "./Tap.sol";
 import "./FlapTap.sol";
 
-contract Hevm { function warp(uint) public; }
+interface Hevm { function warp(uint) external; }
 
 contract TestVat is DSMath {
 
@@ -154,12 +154,24 @@ contract KegTest is DSTest, DSMath {
 
     uint256 constant public THOUSAND = 10**3;
     uint256 constant public MILLION  = 10**6;
-    uint256 constant public WAD      = 10**18;
-    uint256 constant public RAY      = 10**27;
     uint256 constant public RAD      = 10**45;
 
     // CHEAT_CODE = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
     bytes20 constant CHEAT_CODE = bytes20(uint160(uint256(keccak256('hevm cheat code'))));
+
+    function assertEq(uint256 a, uint256 b, uint256 tolerance) internal {
+        if (a < b) {
+            uint256 tmp = a;
+            a = b;
+            b = tmp;
+        }
+        if (a - b > a * tolerance / WAD) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named_uint("  Expected", b);
+            emit log_named_uint("    Actual", a);
+            fail();
+        }
+    }
 
     function setUp() public {
         hevm = Hevm(address(CHEAT_CODE));
@@ -172,9 +184,9 @@ contract KegTest is DSTest, DSMath {
 
         keg = new Keg(address(vat));
         vat.hope(address(keg));
-        tap = new Tap(address(vat), address(vow), address(keg), "operations", RAD / (1 days));
+        tap = new Tap(address(keg), address(vow), "operations", RAD / (1 days));
         vat.rely(address(tap));
-        flapTap = new FlapTap(address(vat), address(flapper), address(keg), "flap", 0.5 ether);
+        flapTap = new FlapTap(address(keg), address(flapper), "flap", 0.5 ether);
         flapTap.rely(address(vow));
 
         user1 = new User(keg);
@@ -186,49 +198,6 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.wards(me),  1);
     }
 
-    function test_pour() public {
-        address[] memory users = new address[](2);
-        users[0] = address(user1);
-        users[1] = address(user2);
-        uint256[] memory amts = new uint256[](2);
-        amts[0] = 2 * RAD;
-        amts[1] = 4 * RAD;
-
-        vat.mint(me, 6 * RAD);
-
-        keg.pour(users, amts);
-        assertEq(vat.dai(address(user1)), 2 * RAD);
-        assertEq(vat.dai(address(user2)), 4 * RAD);
-    }
-
-    function testFail_pour_unequal_length() public {
-        vat.mint(me, 6 * RAD);
-
-        address[] memory users = new address[](2);
-        users[0] = address(user1);
-        users[1] = address(user2);
-        uint256[] memory amts = new uint256[](1);
-        amts[0] = 2 * RAD;
-
-        keg.pour(users, amts);
-    }
-
-    function testFail_pour_zero_length() public {
-        address[] memory users = new address[](0);
-        uint256[] memory amts = new uint256[](0);
-        keg.pour(users, amts);
-    }
-
-    function testFail_pour_zero_address() public {
-        vat.mint(me, 6 * RAD);
-
-        address[] memory users = new address[](2);
-        users[0] = address(0);
-        uint256[] memory amts = new uint256[](1);
-        amts[0] = 2 * RAD;
-        keg.pour(users, amts);
-    }
-
     function test_seat() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -236,7 +205,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        bytes32 flight = "flight1";
+        string memory flight = "flight1";
 
         keg.seat(flight, users, amts);
         (address mug1, uint256 share1) = keg.flights(flight, 0);
@@ -292,7 +261,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.3 ether;   // 30% split
         amts[1] = 0.7 ether;   // 70% split
-        bytes32 flight = "flight1";
+        string memory flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
@@ -310,7 +279,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        bytes32 flight = "flight1";
+        string memory flight = "flight1";
 
         vat.mint(me, 100 * RAD);
         keg.pour(flight, 10 * RAD);
@@ -323,7 +292,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        bytes32 flight = "flight1";
+        string memory flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
@@ -337,7 +306,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        bytes32 flight = "flight1";
+        string memory flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
@@ -356,7 +325,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        bytes32 flight = "flight1";
+        string memory flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 1 * RAD);
@@ -376,12 +345,12 @@ contract KegTest is DSTest, DSMath {
         
         uint256 rate = tap.rate();
         uint256 rad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 rad
-        hevm.warp(1 days + 1);
+        hevm.warp(1 days);
         assertEq(now - tap.rho(), 1 days);
         tap.pump();
-        assertEq(vat.dai(address(user1)), rad * 65 / 100);
-        assertEq(vat.dai(address(user2)), rad * 25 / 100);
-        assertEq(vat.dai(address(user3)), rad - ((rad * 65 / 100) + (rad * 25 / 100)));
+        assertEq(vat.dai(address(user1)), rad * 65 / 100, WAD / 1000);  // Account for rounding errors of 0.1%
+        assertEq(vat.dai(address(user2)), rad * 25 / 100, WAD / 1000);
+        assertEq(vat.dai(address(user3)), rad - ((rad * 65 / 100) + (rad * 25 / 100)), WAD / 1000);
     }
 
     function testFail_tap_rate_change_without_pump() public {
