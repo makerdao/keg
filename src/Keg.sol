@@ -60,7 +60,7 @@ contract Keg {
     VatAbstract public immutable vat;
 
     // Define payout ratios
-    mapping (string => Pint[]) public flights;       // The Pint definitions
+    mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -68,8 +68,8 @@ contract Keg {
     event Start();
     event Stop();
     event Pour(address indexed usr, uint256 amount);
-    event Seat(string indexed flight);
-    event Revoke(string indexed flight);
+    event Seat(bytes32 indexed flight);
+    event Revoke(bytes32 indexed flight);
 
     constructor(address vat_) public {
         vat = VatAbstract(vat_);
@@ -78,7 +78,7 @@ contract Keg {
     }
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
-    function pour(string calldata flight, uint256 rad) external stoppable {
+    function pour(bytes32 flight, uint256 rad) external stoppable {
         Pint[] memory pints = flights[flight];
 
         require(rad > 0, "Keg/rad-zero");
@@ -102,7 +102,7 @@ contract Keg {
     }
 
     // Pre-authorize a flight distribution of funds
-    function seat(string calldata flight, address[] calldata bums, uint256[] calldata shares) external auth {
+    function seat(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external auth {
         require(bums.length == shares.length, "Keg/unequal-bums-and-shares");
         require(bums.length > 0, "Keg/zero-bums");
 
@@ -118,7 +118,7 @@ contract Keg {
     }
 
     // Deauthorize a flight
-    function revoke(string calldata flight) external auth {
+    function revoke(bytes32 flight) external auth {
         require(flights[flight].length > 0, "Keg/flight-not-set");       // pints will be 0 when not set
         for (uint256 i = 0; i < flights[flight].length; i++) {
             delete flights[flight][i];

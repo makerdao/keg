@@ -184,9 +184,9 @@ contract KegTest is DSTest, DSMath {
 
         keg = new Keg(address(vat));
         vat.hope(address(keg));
-        tap = new Tap(address(keg), address(vow), "operations", RAD / (1 days));
+        tap = new Tap(KegAbstract(address(keg)), address(vow), "operations", RAD / (1 days));
         vat.rely(address(tap));
-        flapTap = new FlapTap(address(keg), address(flapper), "flap", 0.5 ether);
+        flapTap = new FlapTap(KegAbstract(address(keg)), address(flapper), "flap", 0.5 ether);
         flapTap.rely(address(vow));
 
         user1 = new User(keg);
@@ -205,7 +205,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        string memory flight = "flight1";
+        bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
         (address mug1, uint256 share1) = keg.flights(flight, 0);
@@ -261,7 +261,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.3 ether;   // 30% split
         amts[1] = 0.7 ether;   // 70% split
-        string memory flight = "flight1";
+        bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
@@ -279,7 +279,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        string memory flight = "flight1";
+        bytes32 flight = "flight1";
 
         vat.mint(me, 100 * RAD);
         keg.pour(flight, 10 * RAD);
@@ -292,7 +292,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        string memory flight = "flight1";
+        bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
@@ -306,7 +306,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        string memory flight = "flight1";
+        bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 100 * RAD);
@@ -325,7 +325,7 @@ contract KegTest is DSTest, DSMath {
         uint256[] memory amts = new uint256[](2);
         amts[0] = 0.25 ether;   // 25% split
         amts[1] = 0.75 ether;   // 75% split
-        string memory flight = "flight1";
+        bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
         vat.mint(me, 1 * RAD);

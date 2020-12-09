@@ -39,18 +39,18 @@ contract FlapTap {
     KegAbstract public immutable keg;
 
     uint256  public live;   // Active Flag
-    string public flight;   // The target flight in keg
+    bytes32 public flight;   // The target flight in keg
     uint256 public flow;    // The fraction of the lot which goes to the keg [wad]
 
     uint256 constant WAD = 10 ** 18;
 
-    constructor(address keg_, address flapper_, string memory flight_, uint256 flow_) public {
+    constructor(KegAbstract keg_, address flapper_, bytes32 flight_, uint256 flow_) public {
         wards[msg.sender] = 1;
-        KegAbstract keg__ = keg = KegAbstract(keg_);
-        VatAbstract vat__ = vat = VatAbstract(keg__.vat());
+        keg = keg_;
+        VatAbstract vat_ = vat = VatAbstract(keg_.vat());
         flapper = FlapAbstract(flapper_);
-        vat__.hope(flapper_);
-        vat__.hope(keg_);
+        vat_.hope(flapper_);
+        vat_.hope(address(keg_));
         flight = flight_;
         require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
         live = 1;
@@ -66,7 +66,7 @@ contract FlapTap {
     }
 
     // --- Administration ---
-    function file(bytes32 what, string calldata data) external auth {
+    function file(bytes32 what, bytes32 data) external auth {
         if (what == "flight") flight = data;
         else revert("FlapTap/file-unrecognized-param");
     }

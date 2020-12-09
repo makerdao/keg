@@ -42,18 +42,18 @@ contract Tap {
     address public immutable vow;
     KegAbstract public immutable keg;
 
-    string public flight;   // The target flight in keg
+    bytes32 public flight;   // The target flight in keg
     uint256 public rate;    // The per-second rate of distributing funds [rad]
     uint256 public rho;     // Time of last pump [unix epoch time]
 
     uint256 constant RAY = 10 ** 27;
 
-    constructor(address keg_, address vow_, string memory flight_, uint256 rate_) public {
+    constructor(KegAbstract keg_, address vow_, bytes32 flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
-        KegAbstract keg__ = keg = KegAbstract(keg_);
-        VatAbstract vat__ = vat = VatAbstract(keg__.vat());
+        keg = keg_;
+        VatAbstract vat_ = vat = VatAbstract(keg_.vat());
         vow = vow_;
-        vat__.hope(keg_);
+        vat_.hope(address(keg_));
         flight = flight_;
         rate = rate_;
         rho = now;
@@ -65,7 +65,7 @@ contract Tap {
     }
 
     // --- Administration ---
-    function file(bytes32 what, string calldata data) external auth {
+    function file(bytes32 what, bytes32 data) external auth {
         require(now == rho, "Tap/rho-not-updated");
         if (what == "flight") flight = data;
         else revert("Tap/file-unrecognized-param");

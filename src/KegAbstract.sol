@@ -25,5 +25,5 @@ interface KegAbstract {
     function stop() external;
     function start() external;
     function vat() external view returns (address);
-    function pour(string calldata flight, uint256 rad) external;
+    function pour(bytes32 flight, uint256 rad) external;
 }
