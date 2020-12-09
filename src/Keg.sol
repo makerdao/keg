@@ -17,13 +17,13 @@
 
 pragma solidity ^0.6.7;
 
-import "dss-interfaces/dss/VatAbstract.sol";
+import "dss-interfaces/dapp/DSTokenAbstract.sol";
 
-// Keg controls payouts
+// Preset ratio payout system for streaming payments
 contract Keg {
 
     struct Pint {
-        address bum;  // Who to pay
+        address bum;   // Who to pay
         uint256 share; // The fraction of the total amount to pay out [wad]
     }
 
@@ -37,6 +37,8 @@ contract Keg {
     }
 
     // --- Math ---
+    uint256 constant WAD = 10 ** 18;
+
     function add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
@@ -55,9 +57,7 @@ contract Keg {
     function start() external auth { stopped = 0; emit Start(); }
     modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
 
-    uint256 constant WAD = 10 ** 18;
-
-    VatAbstract public immutable vat;
+    DSTokenAbstract public immutable token;
 
     // Define payout ratios
     mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
@@ -71,18 +71,18 @@ contract Keg {
     event Seat(bytes32 indexed flight);
     event Revoke(bytes32 indexed flight);
 
-    constructor(address vat_) public {
-        vat = VatAbstract(vat_);
+    constructor(address token_) public {
+        token = DSTokenAbstract(token_);
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
-    function pour(bytes32 flight, uint256 rad) external stoppable {
+    function pour(bytes32 flight, uint256 wad) external stoppable {
         Pint[] memory pints = flights[flight];
 
-        require(rad > 0, "Keg/rad-zero");
-        require(pints.length > 0, "Keg/flight-not-set");       // numPints will be empty when not set
+        require(wad > 0, "Keg/wad-zero");
+        require(pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
         
         uint256 suds = 0;
         for (uint256 i = 0; i < pints.length; i++) {
@@ -90,13 +90,13 @@ contract Keg {
             uint256 sud;
             if (i != pints.length - 1) {
                 // Otherwise use the share amount
-                sud = mul(rad, pints[i].share) / WAD;
+                sud = mul(wad, pints[i].share) / WAD;
             } else {
                 // Add whatevers left over to the last mug to account for rounding errors
-                sud = sub(rad, suds);
+                sud = sub(wad, suds);
             }
             suds = add(suds, sud);
-            vat.move(msg.sender, pint.bum, sud);
+            token.transferFrom(msg.sender, address(pint.bum), sud);
             emit Pour(pint.bum, sud);
         }
     }

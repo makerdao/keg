@@ -18,6 +18,8 @@
 pragma solidity ^0.6.7;
 
 import "dss-interfaces/dss/VatAbstract.sol";
+import "dss-interfaces/dss/DaiAbstract.sol";
+import "dss-interfaces/dss/DaiJoinAbstract.sol";
 import "./KegAbstract.sol";
 
 // A tap can suck funds from the vow to fill the keg at a preset rate.
@@ -41,22 +43,26 @@ contract Tap {
     VatAbstract public immutable vat;
     address public immutable vow;
     KegAbstract public immutable keg;
+    DaiJoinAbstract public immutable daiJoin;
 
-    bytes32 public flight;   // The target flight in keg
-    uint256 public rate;    // The per-second rate of distributing funds [rad]
+    bytes32 public flight;  // The target flight in keg
+    uint256 public rate;    // The per-second rate of distributing funds [wad]
     uint256 public rho;     // Time of last pump [unix epoch time]
 
     uint256 constant RAY = 10 ** 27;
 
-    constructor(KegAbstract keg_, address vow_, bytes32 flight_, uint256 rate_) public {
+    constructor(KegAbstract keg_, DaiJoinAbstract daiJoin_, address vow_, bytes32 flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
         keg = keg_;
-        VatAbstract vat_ = vat = VatAbstract(keg_.vat());
+        daiJoin = daiJoin_;
+        DaiAbstract dai = DaiAbstract(daiJoin_.dai());
+        VatAbstract vat_ = vat = VatAbstract(daiJoin_.vat());
         vow = vow_;
-        vat_.hope(address(keg_));
         flight = flight_;
         rate = rate_;
         rho = now;
+        vat_.hope(address(daiJoin_));
+        dai.approve(address(keg_), uint256(-1));
     }
 
     // --- Math ---
@@ -78,10 +84,11 @@ contract Tap {
 
     function pump() external stoppable {
         require(now >= rho, "Tap/invalid-now");
-        uint256 rad = mul(now - rho, rate);
-        if (rad > 0) {
-            vat.suck(address(vow), address(this), rad);
-            keg.pour(flight, rad);
+        uint256 wad = mul(now - rho, rate);
+        if (wad > 0) {
+            vat.suck(address(vow), address(this), mul(wad, RAY));
+            daiJoin.exit(address(this), wad);
+            keg.pour(flight, wad);
         }
         rho = now;
     }

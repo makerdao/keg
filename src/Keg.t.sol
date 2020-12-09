@@ -131,8 +131,8 @@ contract TestVow is DSMath {
 }
 
 contract User {
-    Keg public keg;
-    constructor(Keg keg_) public       { keg = keg_; }
+    KegAbstract public keg;
+    constructor(KegAbstract keg_) public { keg = keg_; }
 }
 
 contract KegTest is DSTest, DSMath {
@@ -142,11 +142,13 @@ contract KegTest is DSTest, DSMath {
 
     address me;
     TestVat vat;
-    Keg keg;
+    KegAbstract keg;
     Tap tap;
     FlapTap flapTap;
     TestFlapper flapper;
     TestVow vow;
+    DaiAbstract dai;
+    DaiJoinAbstract daiJoin;
 
     User user1;
     User user2;
@@ -182,11 +184,17 @@ contract KegTest is DSTest, DSMath {
         flapper = new TestFlapper(address(vat));
         vow = new TestVow(address(vat), address(flapper));
 
-        keg = new Keg(address(vat));
+        dai = DaiAbstract(address(new Dai(0)));
+        daiJoin = DaiJoinAbstract(address(new DaiJoin(address(vat), address(dai))));
+        vat.rely(address(daiJoin));
+        dai.rely(address(daiJoin));
+
+        keg = KegAbstract(address(new Keg(address(dai))));
+        dai.approve(address(keg), uint256(-1));
         vat.hope(address(keg));
-        tap = new Tap(KegAbstract(address(keg)), address(vow), "operations", RAD / (1 days));
+        tap = new Tap(keg, daiJoin, address(vow), "operations", WAD / (1 days));
         vat.rely(address(tap));
-        flapTap = new FlapTap(KegAbstract(address(keg)), address(flapper), "flap", 0.5 ether);
+        flapTap = new FlapTap(keg, daiJoin, address(flapper), "flap", 0.5 ether);
         flapTap.rely(address(vow));
 
         user1 = new User(keg);
@@ -264,12 +272,12 @@ contract KegTest is DSTest, DSMath {
         bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
-        vat.mint(me, 100 * RAD);
+        dai.mint(me, 100 * WAD);
         
-        keg.pour(flight, 10 * RAD);
-        assertEq(vat.dai(me), 90 * RAD);
-        assertEq(vat.dai(address(user1)), 3 * RAD);
-        assertEq(vat.dai(address(user2)), 7 * RAD);
+        keg.pour(flight, 10 * WAD);
+        assertEq(dai.balanceOf(me), 90 * WAD);
+        assertEq(dai.balanceOf(address(user1)), 3 * WAD);
+        assertEq(dai.balanceOf(address(user2)), 7 * WAD);
     }
 
     function testFail_pour_flight_invalid() public {
@@ -281,8 +289,8 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "flight1";
 
-        vat.mint(me, 100 * RAD);
-        keg.pour(flight, 10 * RAD);
+        dai.mint(me, 100 * WAD);
+        keg.pour(flight, 10 * WAD);
     }
 
     function testFail_pour_flight_zero() public {
@@ -295,7 +303,7 @@ contract KegTest is DSTest, DSMath {
         bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
-        vat.mint(me, 100 * RAD);
+        dai.mint(me, 100 * WAD);
         keg.pour(flight, 0);
     }
 
@@ -309,13 +317,13 @@ contract KegTest is DSTest, DSMath {
         bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
-        vat.mint(me, 100 * RAD);
+        dai.mint(me, 100 * WAD);
         keg.pour(flight, 1);
 
         // Rules are to give any fractional remainder to the last mug
-        assertEq(vat.dai(address(user1)), 0);
-        assertEq(vat.dai(address(user2)), 1);
-        assertEq(vat.dai(me), 100 * RAD - 1);
+        assertEq(dai.balanceOf(address(user1)), 0);
+        assertEq(dai.balanceOf(address(user2)), 1);
+        assertEq(dai.balanceOf(me), 100 * WAD - 1);
     }
 
     function testFail_pour_flight_not_enough_dai() public {
@@ -328,8 +336,8 @@ contract KegTest is DSTest, DSMath {
         bytes32 flight = "flight1";
 
         keg.seat(flight, users, amts);
-        vat.mint(me, 1 * RAD);
-        keg.pour(flight, 10 * RAD);
+        dai.mint(me, 1 * WAD);
+        keg.pour(flight, 10 * WAD);
     }
 
     function test_tap_pump() public {
@@ -344,13 +352,13 @@ contract KegTest is DSTest, DSMath {
         keg.seat(tap.flight(), users, amts);
         
         uint256 rate = tap.rate();
-        uint256 rad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 rad
+        uint256 wad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 rad
         hevm.warp(1 days);
         assertEq(now - tap.rho(), 1 days);
         tap.pump();
-        assertEq(vat.dai(address(user1)), rad * 65 / 100, WAD / 1000);  // Account for rounding errors of 0.1%
-        assertEq(vat.dai(address(user2)), rad * 25 / 100, WAD / 1000);
-        assertEq(vat.dai(address(user3)), rad - ((rad * 65 / 100) + (rad * 25 / 100)), WAD / 1000);
+        assertEq(dai.balanceOf(address(user1)), wad * 65 / 100, WAD / 1000);  // Account for rounding errors of 0.1%
+        assertEq(dai.balanceOf(address(user2)), wad * 25 / 100, WAD / 1000);
+        assertEq(dai.balanceOf(address(user3)), wad - ((wad * 65 / 100) + (wad * 25 / 100)), WAD / 1000);
     }
 
     function testFail_tap_rate_change_without_pump() public {
@@ -403,12 +411,12 @@ contract KegTest is DSTest, DSMath {
         
         assertEq(vow.flap(), 2);
         assertEq(flapper.kicks(), 2);
-        uint256 beer = vow.bump() * flapTap.flow() / WAD;
-        auctioned += vow.bump() - beer;
+        uint256 wad = vow.bump() * flapTap.flow() / RAD;
+        auctioned += vow.bump() - wad * RAY;
         assertEq(flapper.amountAuctioned(), auctioned);
         assertEq(vat.dai(address(flapper)), auctioned);
-        assertEq(vat.dai(address(user1)), beer / 2);
-        assertEq(vat.dai(address(user2)), beer / 2);
+        assertEq(dai.balanceOf(address(user1)), wad / 2);
+        assertEq(dai.balanceOf(address(user2)), wad / 2);
     }
 
     function testFail_flap_tap_invalid_flow() public {

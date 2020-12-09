@@ -24,6 +24,9 @@ interface KegAbstract {
     function stopped() external view returns (uint256);
     function stop() external;
     function start() external;
-    function vat() external view returns (address);
+    function token() external view returns (address);
+    function flights(bytes32 flight, uint256 index) external view returns (address, uint256);
     function pour(bytes32 flight, uint256 rad) external;
+    function seat(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external;
+    function revoke(bytes32 flight) external;
 }

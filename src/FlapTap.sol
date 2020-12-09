@@ -17,6 +17,8 @@
 
 pragma solidity ^0.6.7;
 
+import "dss-interfaces/dss/DaiAbstract.sol";
+import "dss-interfaces/dss/DaiJoinAbstract.sol";
 import "dss-interfaces/dss/FlapAbstract.sol";
 import "dss-interfaces/dss/VatAbstract.sol";
 import "./KegAbstract.sol";
@@ -37,23 +39,29 @@ contract FlapTap {
     VatAbstract public immutable vat;
     FlapAbstract public immutable flapper;
     KegAbstract public immutable keg;
+    DaiJoinAbstract public immutable daiJoin;
 
     uint256  public live;   // Active Flag
-    bytes32 public flight;   // The target flight in keg
+    bytes32 public flight;  // The target flight in keg
     uint256 public flow;    // The fraction of the lot which goes to the keg [wad]
 
     uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
+    uint256 constant RAD = 10 ** 45;
 
-    constructor(KegAbstract keg_, address flapper_, bytes32 flight_, uint256 flow_) public {
+    constructor(KegAbstract keg_, DaiJoinAbstract daiJoin_, address flapper_, bytes32 flight_, uint256 flow_) public {
         wards[msg.sender] = 1;
         keg = keg_;
-        VatAbstract vat_ = vat = VatAbstract(keg_.vat());
+        daiJoin = daiJoin_;
+        DaiAbstract dai = DaiAbstract(daiJoin_.dai());
+        VatAbstract vat_ = vat = VatAbstract(daiJoin_.vat());
         flapper = FlapAbstract(flapper_);
-        vat_.hope(flapper_);
-        vat_.hope(address(keg_));
         flight = flight_;
         require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
         live = 1;
+        vat_.hope(flapper_);
+        vat_.hope(address(daiJoin_));
+        dai.approve(address(keg_), uint256(-1));
     }
 
     // --- Math ---
@@ -77,10 +85,12 @@ contract FlapTap {
 
     function kick(uint256 lot, uint256 bid) external auth returns (uint256) {
         require(live == 1, "FlapTap/not-live");
-        uint256 beer = mul(lot, flow) / WAD;
+        uint256 wad = mul(lot, flow) / RAD;
+        uint256 rad = mul(wad, RAY);
         vat.move(msg.sender, address(this), lot);
-        keg.pour(flight, beer);
-        return flapper.kick(sub(lot, beer), bid);
+        daiJoin.exit(address(this), wad);
+        keg.pour(flight, wad);
+        return flapper.kick(sub(lot, rad), bid);
     }
 
     function cage(uint256) external auth {
