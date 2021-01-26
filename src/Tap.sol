@@ -27,8 +27,8 @@ contract Tap {
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external auth { wards[usr] = 1; }
-    function deny(address usr) external auth { wards[usr] = 0; }
+    function rely(address usr) external auth { wards[usr] = 1; emit Rely(usr); }
+    function deny(address usr) external auth { wards[usr] = 0; emit Deny(usr); }
     modifier auth {
         require(wards[msg.sender] == 1, "Tap/not-authorized");
         _;
@@ -40,9 +40,10 @@ contract Tap {
     function start() external auth { stopped = 0; }
     modifier stoppable { require(stopped == 0, "Tap/is-stopped"); _; }
 
-    VatAbstract public immutable vat;
-    address public immutable vow;
-    KegAbstract public immutable keg;
+    // --- Variable ---
+    VatAbstract     public immutable vat;
+    address         public immutable vow;
+    KegAbstract     public immutable keg;
     DaiJoinAbstract public immutable daiJoin;
 
     bytes32 public flight;  // The target flight in keg
@@ -51,18 +52,29 @@ contract Tap {
 
     uint256 constant RAY = 10 ** 27;
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+    event File(bytes32 indexed what, bytes32 data);
+    event File(bytes32 indexed what, uint256 data);
+
+
+    // --- Init ---
     constructor(KegAbstract keg_, DaiJoinAbstract daiJoin_, address vow_, bytes32 flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
-        keg = keg_;
+        emit Rely(msg.sender);
+
+        keg     = keg_;
         daiJoin = daiJoin_;
-        DaiAbstract dai = DaiAbstract(daiJoin_.dai());
+        vow     = vow_;
+        flight  = flight_;
+        rate    = rate_;
+        rho     = now;
         VatAbstract vat_ = vat = VatAbstract(daiJoin_.vat());
-        vow = vow_;
-        flight = flight_;
-        rate = rate_;
-        rho = now;
+        DaiAbstract dai  = DaiAbstract(daiJoin_.dai());
+
         vat_.hope(address(daiJoin_));
-        dai.approve(address(keg_), uint256(-1));
+        require(dai.approve(address(keg_), uint256(-1)), "Tap/dai-approval-failure");
     }
 
     // --- Math ---
@@ -75,21 +87,25 @@ contract Tap {
         require(now == rho, "Tap/rho-not-updated");
         if (what == "flight") flight = data;
         else revert("Tap/file-unrecognized-param");
+
+        emit File(what, data);
     }
     function file(bytes32 what, uint256 data) external auth {
         require(now == rho, "Tap/rho-not-updated");
         if (what == "rate") rate = data;
         else revert("Tap/file-unrecognized-param");
+
+        emit File(what, data);
     }
 
+    // --- External ---
     function pump() external stoppable {
-        require(now >= rho, "Tap/invalid-now");
+        require(now > rho, "Tap/invalid-now");
         uint256 wad = mul(now - rho, rate);
-        if (wad > 0) {
-            vat.suck(address(vow), address(this), mul(wad, RAY));
-            daiJoin.exit(address(this), wad);
-            keg.pour(flight, wad);
-        }
         rho = now;
+
+        vat.suck(address(vow), address(this), mul(wad, RAY));
+        daiJoin.exit(address(this), wad);
+        keg.pour(flight, wad);
     }
 }

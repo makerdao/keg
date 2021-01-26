@@ -17,7 +17,7 @@
 
 pragma solidity ^0.6.7;
 
-import "dss-interfaces/dapp/DSTokenAbstract.sol";
+import "dss-interfaces/ERC/GemAbstract.sol";
 
 // Preset ratio payout system for streaming payments
 contract Keg {
@@ -36,6 +36,34 @@ contract Keg {
         _;
     }
 
+    // --- Stop ---
+    uint256 public stopped;
+    function stop() external auth { stopped = 1; emit Stop(); }
+    function start() external auth { stopped = 0; emit Start(); }
+    modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
+
+    // --- Variable ---
+    GemAbstract public immutable token;
+
+    // Define payout ratios
+    mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+    event Start();
+    event Stop();
+    event Pour(address indexed usr, uint256 amount);
+    event Seat(bytes32 indexed flight);
+    event Revoke(bytes32 indexed flight);
+
+    // --- Init ---
+    constructor(address token_) public {
+        token = GemAbstract(token_);
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
+    }
+
     // --- Math ---
     uint256 constant WAD = 10 ** 18;
 
@@ -51,55 +79,7 @@ contract Keg {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    // --- Stop ---
-    uint256 public stopped;
-    function stop() external auth { stopped = 1; emit Stop(); }
-    function start() external auth { stopped = 0; emit Start(); }
-    modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
-
-    DSTokenAbstract public immutable token;
-
-    // Define payout ratios
-    mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
-
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-    event Start();
-    event Stop();
-    event Pour(address indexed usr, uint256 amount);
-    event Seat(bytes32 indexed flight);
-    event Revoke(bytes32 indexed flight);
-
-    constructor(address token_) public {
-        token = DSTokenAbstract(token_);
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
-    }
-
-    // Credits people with rights to withdraw funds from the pool using a preset flight
-    function pour(bytes32 flight, uint256 wad) external stoppable {
-        Pint[] memory pints = flights[flight];
-
-        require(wad > 0, "Keg/wad-zero");
-        require(pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
-        
-        uint256 suds = 0;
-        for (uint256 i = 0; i < pints.length; i++) {
-            Pint memory pint = pints[i];
-            uint256 sud;
-            if (i != pints.length - 1) {
-                // Otherwise use the share amount
-                sud = mul(wad, pints[i].share) / WAD;
-            } else {
-                // Add whatevers left over to the last mug to account for rounding errors
-                sud = sub(wad, suds);
-            }
-            suds = add(suds, sud);
-            token.transferFrom(msg.sender, address(pint.bum), sud);
-            emit Pour(pint.bum, sud);
-        }
-    }
+    // --- Administration ---
 
     // Pre-authorize a flight distribution of funds
     function seat(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external auth {
@@ -123,7 +103,37 @@ contract Keg {
         for (uint256 i = 0; i < flights[flight].length; i++) {
             delete flights[flight][i];
         }
+        // TODO remove the flights[flight]
         emit Revoke(flight);
     }
+
+    // --- External ---
+
+    // Credits people with rights to withdraw funds from the pool using a preset flight
+    function pour(bytes32 flight, uint256 wad) external stoppable {
+        Pint[] memory pints = flights[flight];
+
+        require(wad > 0, "Keg/wad-zero");
+        require(pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
+
+        uint256 suds = 0;
+        for (uint256 i = 0; i < pints.length; i++) {
+            Pint memory pint = pints[i];
+            uint256 sud;
+            if (i != pints.length - 1) {
+                // Otherwise use the share amount
+                sud = mul(wad, pints[i].share) / WAD;
+            } else {
+                // Add whatevers left over to the last mug to account for rounding errors
+                sud = sub(wad, suds);
+            }
+            suds = add(suds, sud);
+
+            emit Pour(pint.bum, sud);
+
+            require(token.transferFrom(msg.sender, address(pint.bum), sud), "Keg/transfer-failure");
+        }
+    }
+
 
 }

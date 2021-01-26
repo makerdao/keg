@@ -29,19 +29,20 @@ contract FlapTap {
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external auth { wards[usr] = 1; }
-    function deny(address usr) external auth { wards[usr] = 0; }
+    function rely(address usr) external auth { wards[usr] = 1; emit Rely(usr); }
+    function deny(address usr) external auth { wards[usr] = 0; emit Deny(usr); }
     modifier auth {
         require(wards[msg.sender] == 1, "FlapTap/not-authorized");
         _;
     }
 
-    VatAbstract public immutable vat;
-    FlapAbstract public immutable flapper;
-    KegAbstract public immutable keg;
+    // --- Variable ---
+    VatAbstract     public immutable vat;
+    FlapAbstract    public immutable flapper;
+    KegAbstract     public immutable keg;
     DaiJoinAbstract public immutable daiJoin;
 
-    uint256  public live;   // Active Flag
+    uint256 public live;    // Active Flag
     bytes32 public flight;  // The target flight in keg
     uint256 public flow;    // The fraction of the lot which goes to the keg [wad]
 
@@ -49,19 +50,33 @@ contract FlapTap {
     uint256 constant RAY = 10 ** 27;
     uint256 constant RAD = 10 ** 45;
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+    event File(bytes32 indexed what, bytes32 data);
+    event File(bytes32 indexed what, uint256 data);
+
+    // --- Init ---
     constructor(KegAbstract keg_, DaiJoinAbstract daiJoin_, address flapper_, bytes32 flight_, uint256 flow_) public {
         wards[msg.sender] = 1;
-        keg = keg_;
+        emit Rely(msg.sender);
+
+        keg     = keg_;
         daiJoin = daiJoin_;
-        DaiAbstract dai = DaiAbstract(daiJoin_.dai());
-        VatAbstract vat_ = vat = VatAbstract(daiJoin_.vat());
         flapper = FlapAbstract(flapper_);
-        flight = flight_;
-        require((flow = flow_) <= WAD, "FlapTap/invalid-flow");
-        live = 1;
+        flight  = flight_;
+        flow    = flow_;
+        live    = 1;
+
+        VatAbstract vat_ = vat = VatAbstract(daiJoin_.vat());
+        DaiAbstract dai  = DaiAbstract(daiJoin_.dai());
+
+        require(flow_ <= WAD, "FlapTap/invalid-flow");
+
         vat_.hope(flapper_);
         vat_.hope(address(daiJoin_));
-        dai.approve(address(keg_), uint256(-1));
+
+        require(dai.approve(address(keg_), uint256(-1)), "FlapTap/dai-approval-failure");
     }
 
     // --- Math ---
@@ -77,10 +92,17 @@ contract FlapTap {
     function file(bytes32 what, bytes32 data) external auth {
         if (what == "flight") flight = data;
         else revert("FlapTap/file-unrecognized-param");
+
+        emit File(what, data);
     }
+
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "flow") require((flow = data) <= WAD, "FlapTap/invalid-flow");
-        else revert("FlapTap/file-unrecognized-param");
+        if (what == "flow") {
+            require(data <= WAD, "FlapTap/invalid-flow");
+            flow = data;
+        } else revert("FlapTap/file-unrecognized-param");
+
+        emit File(what, data);
     }
 
     function kick(uint256 lot, uint256 bid) external auth returns (uint256) {
