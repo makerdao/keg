@@ -134,7 +134,7 @@ contract Wallet {
     constructor() public {}
 }
 
-contract KegTest is DSTest, DSMath {
+contract TapTest is DSTest, DSMath {
     Hevm hevm;
 
     address constant public MCD_VOW = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF; // Fake address for mocking

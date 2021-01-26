@@ -69,7 +69,7 @@ contract Tap {
         vow     = vow_;
         flight  = flight_;
         rate    = rate_;
-        rho     = now;
+        rho     = block.timestamp;
         VatAbstract vat_ = vat = VatAbstract(daiJoin_.vat());
         DaiAbstract dai  = DaiAbstract(daiJoin_.dai());
 
@@ -84,14 +84,14 @@ contract Tap {
 
     // --- Administration ---
     function file(bytes32 what, bytes32 data) external auth {
-        require(now == rho, "Tap/rho-not-updated");
+        require(block.timestamp == rho, "Tap/rho-not-updated");
         if (what == "flight") flight = data;
         else revert("Tap/file-unrecognized-param");
 
         emit File(what, data);
     }
     function file(bytes32 what, uint256 data) external auth {
-        require(now == rho, "Tap/rho-not-updated");
+        require(block.timestamp == rho, "Tap/rho-not-updated");
         if (what == "rate") rate = data;
         else revert("Tap/file-unrecognized-param");
 
@@ -100,9 +100,9 @@ contract Tap {
 
     // --- External ---
     function pump() external stoppable {
-        require(now > rho, "Tap/invalid-now");
-        uint256 wad = mul(now - rho, rate);
-        rho = now;
+        require(block.timestamp > rho, "Tap/invalid-now");
+        uint256 wad = mul(block.timestamp - rho, rate);
+        rho = block.timestamp;
 
         vat.suck(address(vow), address(this), mul(wad, RAY));
         daiJoin.exit(address(this), wad);
