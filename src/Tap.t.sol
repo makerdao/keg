@@ -61,6 +61,7 @@ contract TestVat is DSMath {
     }
 
     function suck(address u, address v, uint rad) auth public {
+        u;
         mint(v, rad);
     }
 
@@ -83,6 +84,7 @@ contract TestFlapper is DSMath {
     }
 
     function kick(uint256 lot, uint256 bid) public returns (uint256 id) {
+        bid;
         id = ++kicks;
         amountAuctioned += lot;
         vat.move(msg.sender, address(this), lot);
