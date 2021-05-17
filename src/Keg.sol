@@ -101,11 +101,7 @@ contract Keg {
     // Deauthorize a flight
     function revoke(bytes32 flight) external auth {
         require(flights[flight].length > 0, "Keg/flight-not-set");       // pints will be 0 when not set
-        //for (uint256 i = 0; i < flights[flight].length; i++) {
-        //    delete flights[flight][i];
-        //}
         delete flights[flight];
-        // TODO remove the flights[flight]
         emit Revoke(flight);
     }
 
