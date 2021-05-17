@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pragma solidity ^0.6.11;
+pragma solidity ^0.6.12;
 
 import "ds-test/test.sol";
 import "ds-math/math.sol";
@@ -273,7 +273,7 @@ contract KegTest is DSTest, DSMath {
 
         keg.seat(flight, users, amts);
         dai.mint(me, 100 * WAD);
-        
+
         keg.pour(flight, 10 * WAD);
         assertEq(dai.balanceOf(me), 90 * WAD);
         assertEq(dai.balanceOf(address(user1)), 3 * WAD);
@@ -350,7 +350,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.25 ether;   // 25% split
         amts[2] = 0.10 ether;   // 10% split
         keg.seat(tap.flight(), users, amts);
-        
+
         uint256 rate = tap.rate();
         uint256 wad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 rad
         hevm.warp(1 days);
@@ -398,7 +398,7 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 0.50 ether;   // 50% split
         amts[1] = 0.50 ether;   // 50% split
         keg.seat(flapTap.flight(), users, amts);
-        
+
         assertEq(flapper.kicks(), 0);
         assertEq(vow.flap(), 1);
         assertEq(flapper.kicks(), 1);
@@ -408,7 +408,7 @@ contract KegTest is DSTest, DSMath {
 
         // Insert the TapFlap in between the vow and flapper
         vow.file("flapper", address(flapTap));
-        
+
         assertEq(vow.flap(), 2);
         assertEq(flapper.kicks(), 2);
         uint256 wad = vow.bump() * flapTap.flow() / RAD;
@@ -438,5 +438,5 @@ contract KegTest is DSTest, DSMath {
         // All dai should be returned to the vow
         assertEq(vat.dai(address(vow)), vow.bump() / 2);
     }
-    
+
 }
