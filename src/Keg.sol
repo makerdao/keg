@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Keg.sol
 
 // Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
