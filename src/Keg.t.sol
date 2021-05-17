@@ -209,6 +209,10 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.wards(me),  1);
     }
 
+    function try_flights(address keg, bytes32 flight, uint256 pos) internal returns (bool ok) {
+        (ok,) = address(keg).call(abi.encodeWithSignature("flights(bytes32,uint256)", flight, pos));
+    }
+
     function test_seat() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -225,10 +229,32 @@ contract KegTest is DSTest, DSMath {
         assertEq(share1, 0.25 ether);
         assertEq(mug2, address(user2));
         assertEq(share2, 0.75 ether);
+    }
+
+    function test_revoke() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.seat(flight, users, amts);
+        (address mug1, uint256 share1) = keg.flights(flight, 0);
+        (address mug2, uint256 share2) = keg.flights(flight, 1);
+        assertEq(mug1, address(user1));
+        assertEq(share1, 0.25 ether);
+        assertEq(mug2, address(user2));
+        assertEq(share2, 0.75 ether);
+
+        assertTrue(try_flights(address(keg), flight, 0));
+        assertTrue(try_flights(address(keg), flight, 1));
+
         keg.revoke(flight);
-        (address mug3, uint256 share3) = keg.flights(flight, 0);
-        assertEq(mug3, address(0));
-        assertEq(share3, 0);
+
+        assertTrue(!try_flights(address(keg), flight, 0));
+        assertTrue(!try_flights(address(keg), flight, 1));
     }
 
     function testFail_seat_bad_shares() public {
