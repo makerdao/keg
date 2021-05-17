@@ -209,8 +209,8 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.wards(me),  1);
     }
 
-    function try_flights(address keg, bytes32 flight, uint256 pos) internal returns (bool ok) {
-        (ok,) = address(keg).call(abi.encodeWithSignature("flights(bytes32,uint256)", flight, pos));
+    function try_flights(address _keg, bytes32 _flight, uint256 _pos) internal returns (bool ok) {
+        (ok,) = address(_keg).call(abi.encodeWithSignature("flights(bytes32,uint256)", _flight, _pos));
     }
 
     function test_seat() public {
