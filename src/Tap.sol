@@ -48,8 +48,8 @@ contract Tap {
     DaiJoinAbstract public immutable daiJoin;
 
     bytes32 public flight;  // The target flight in keg
-    uint256 public rate;    // The per-second rate of distributing funds [wad]
-    uint256 public rho;     // Time of last pump [unix epoch time]
+    uint256 public rate;    // The rate of distributing funds [wad / second]
+    uint256 public rho;     // Time of last pump [seconds]
 
     uint256 constant RAY = 10 ** 27;
 
