@@ -104,7 +104,7 @@ contract Keg {
 
     // Deauthorize a flight
     function revoke(bytes32 flight) external auth {
-        require(flights[flight].pints.length > 0, "Keg/flight-not-set");       // pints will be 0 when not set
+        require(flights[flight].gem != address(0), "Keg/flight-not-set");
         delete flights[flight];
         emit Revoke(flight);
     }
@@ -117,7 +117,7 @@ contract Keg {
         Pint[] memory pints = flights[flight].pints;
 
         require(wad > 0, "Keg/wad-zero");
-        require(pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
+        require(gem != address(0), "Keg/flight-not-set");
 
         uint256 suds = 0;
         for (uint256 i = 0; i < pints.length; i++) {
