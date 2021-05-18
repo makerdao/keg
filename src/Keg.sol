@@ -111,12 +111,11 @@ contract Keg {
 
     // --- External ---
 
-    // Credits people with rights to withdraw funds from the pool using a preset flight
+    // Sends out funds according to the pre-authorized flight
     function pour(bytes32 flight, uint256 wad) external stoppable {
         address gem = flights[flight].gem;
         Pint[] memory pints = flights[flight].pints;
 
-        require(wad > 0, "Keg/wad-zero");
         require(gem != address(0), "Keg/flight-not-set");
 
         uint256 suds = 0;
