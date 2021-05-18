@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Keg.t.sol
 
 // Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
@@ -15,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pragma solidity ^0.6.11;
+pragma solidity ^0.6.12;
 
 import "ds-test/test.sol";
 import "ds-math/math.sol";
@@ -61,6 +62,7 @@ contract TestVat is DSMath {
     }
 
     function suck(address u, address v, uint rad) auth public {
+        u;
         mint(v, rad);
     }
 
@@ -83,6 +85,7 @@ contract TestFlapper is DSMath {
     }
 
     function kick(uint256 lot, uint256 bid) public returns (uint256 id) {
+        bid;
         id = ++kicks;
         amountAuctioned += lot;
         vat.move(msg.sender, address(this), lot);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Tap.sol
 
 // Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
@@ -15,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pragma solidity ^0.6.11;
+pragma solidity ^0.6.12;
 
 import "dss-interfaces/dss/VatAbstract.sol";
 import "dss-interfaces/dss/DaiAbstract.sol";

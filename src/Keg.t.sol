@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Keg.t.sol
 
 // Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
@@ -15,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pragma solidity ^0.6.11;
+pragma solidity ^0.6.12;
 
 import "ds-test/test.sol";
 import "ds-math/math.sol";
@@ -61,6 +62,7 @@ contract TestVat is DSMath {
     }
 
     function suck(address u, address v, uint rad) auth public {
+        u;
         mint(v, rad);
     }
 
@@ -83,6 +85,7 @@ contract TestFlapper is DSMath {
     }
 
     function kick(uint256 lot, uint256 bid) public returns (uint256 id) {
+        bid;
         id = ++kicks;
         amountAuctioned += lot;
         vat.move(msg.sender, address(this), lot);
@@ -206,6 +209,10 @@ contract KegTest is DSTest, DSMath {
         assertEq(keg.wards(me),  1);
     }
 
+    function try_flights(address _keg, bytes32 _flight, uint256 _pos) internal returns (bool ok) {
+        (ok,) = address(_keg).call(abi.encodeWithSignature("flights(bytes32,uint256)", _flight, _pos));
+    }
+
     function test_seat() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
@@ -222,10 +229,32 @@ contract KegTest is DSTest, DSMath {
         assertEq(share1, 0.25 ether);
         assertEq(mug2, address(user2));
         assertEq(share2, 0.75 ether);
+    }
+
+    function test_revoke() public {
+        address[] memory users = new address[](2);
+        users[0] = address(user1);
+        users[1] = address(user2);
+        uint256[] memory amts = new uint256[](2);
+        amts[0] = 0.25 ether;   // 25% split
+        amts[1] = 0.75 ether;   // 75% split
+        bytes32 flight = "flight1";
+
+        keg.seat(flight, users, amts);
+        (address mug1, uint256 share1) = keg.flights(flight, 0);
+        (address mug2, uint256 share2) = keg.flights(flight, 1);
+        assertEq(mug1, address(user1));
+        assertEq(share1, 0.25 ether);
+        assertEq(mug2, address(user2));
+        assertEq(share2, 0.75 ether);
+
+        assertTrue(try_flights(address(keg), flight, 0));
+        assertTrue(try_flights(address(keg), flight, 1));
+
         keg.revoke(flight);
-        (address mug3, uint256 share3) = keg.flights(flight, 0);
-        assertEq(mug3, address(0));
-        assertEq(share3, 0);
+
+        assertTrue(!try_flights(address(keg), flight, 0));
+        assertTrue(!try_flights(address(keg), flight, 1));
     }
 
     function testFail_seat_bad_shares() public {
@@ -273,7 +302,7 @@ contract KegTest is DSTest, DSMath {
 
         keg.seat(flight, users, amts);
         dai.mint(me, 100 * WAD);
-        
+
         keg.pour(flight, 10 * WAD);
         assertEq(dai.balanceOf(me), 90 * WAD);
         assertEq(dai.balanceOf(address(user1)), 3 * WAD);
@@ -350,7 +379,7 @@ contract KegTest is DSTest, DSMath {
         amts[1] = 0.25 ether;   // 25% split
         amts[2] = 0.10 ether;   // 10% split
         keg.seat(tap.flight(), users, amts);
-        
+
         uint256 rate = tap.rate();
         uint256 wad = rate * 1 days;        // Due to rounding errors this may not be exactly 1 rad
         hevm.warp(1 days);
@@ -398,7 +427,7 @@ contract KegTest is DSTest, DSMath {
         amts[0] = 0.50 ether;   // 50% split
         amts[1] = 0.50 ether;   // 50% split
         keg.seat(flapTap.flight(), users, amts);
-        
+
         assertEq(flapper.kicks(), 0);
         assertEq(vow.flap(), 1);
         assertEq(flapper.kicks(), 1);
@@ -408,7 +437,7 @@ contract KegTest is DSTest, DSMath {
 
         // Insert the TapFlap in between the vow and flapper
         vow.file("flapper", address(flapTap));
-        
+
         assertEq(vow.flap(), 2);
         assertEq(flapper.kicks(), 2);
         uint256 wad = vow.bump() * flapTap.flow() / RAD;
@@ -438,5 +467,5 @@ contract KegTest is DSTest, DSMath {
         // All dai should be returned to the vow
         assertEq(vat.dai(address(vow)), vow.bump() / 2);
     }
-    
+
 }

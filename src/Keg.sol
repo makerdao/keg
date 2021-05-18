@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Keg.sol
 
 // Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
@@ -15,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pragma solidity ^0.6.11;
+pragma solidity ^0.6.12;
 
 import "dss-interfaces/ERC/GemAbstract.sol";
 
@@ -100,10 +101,7 @@ contract Keg {
     // Deauthorize a flight
     function revoke(bytes32 flight) external auth {
         require(flights[flight].length > 0, "Keg/flight-not-set");       // pints will be 0 when not set
-        for (uint256 i = 0; i < flights[flight].length; i++) {
-            delete flights[flight][i];
-        }
-        // TODO remove the flights[flight]
+        delete flights[flight];
         emit Revoke(flight);
     }
 
