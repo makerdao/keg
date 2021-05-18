@@ -192,7 +192,7 @@ contract FlapTapTest is DSTest, DSMath {
         vat.rely(address(daiJoin));
         dai.rely(address(daiJoin));
 
-        keg = KegAbstract(address(new Keg(address(dai))));
+        keg = KegAbstract(address(new Keg()));
         dai.approve(address(keg), uint256(-1));
         vat.hope(address(keg));
         flapTap = new FlapTap(keg, daiJoin, address(flapper), "flap",  0.5 ether);

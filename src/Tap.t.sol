@@ -177,7 +177,7 @@ contract TapTest is DSTest, DSMath {
         vat.rely(address(daiJoin));
         dai.rely(address(daiJoin));
 
-        keg = KegAbstract(address(new Keg(address(dai))));
+        keg = KegAbstract(address(new Keg()));
 
         tap = new Tap(keg, daiJoin, address(vow), "operations", WAD / (1 days));
         vat.rely(address(tap));
@@ -194,7 +194,7 @@ contract TapTest is DSTest, DSMath {
         amts[1] = 0.75 ether;   // 75% split
         bytes32 flight = "operations";
 
-        keg.seat(flight, wallets, amts);
+        keg.seat(flight, address(dai), wallets, amts);
 
     }
 

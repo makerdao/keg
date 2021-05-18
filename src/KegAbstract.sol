@@ -17,6 +17,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 pragma solidity >=0.5.12;
+pragma experimental ABIEncoderV2;
+
+struct Pint {
+    address bum;
+    uint256 share;
+}
+
+struct Flight {
+    address gem;
+    Pint[] pints;
+}
 
 interface KegAbstract {
     function wards(address) external view returns (uint256);
@@ -26,8 +37,10 @@ interface KegAbstract {
     function stop() external;
     function start() external;
     function token() external view returns (address);
-    function flights(bytes32 flight, uint256 index) external view returns (address, uint256);
+    function exists(bytes32 flight) external view returns (bool);
+    function gems(bytes32 flight) external view returns (address);
+    function pints(bytes32 flight) external view returns (Pint[] memory);
     function pour(bytes32 flight, uint256 rad) external;
-    function seat(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external;
+    function seat(bytes32 flight, address gem, address[] calldata bums, uint256[] calldata shares) external;
     function revoke(bytes32 flight) external;
 }
