@@ -113,16 +113,17 @@ contract Keg {
 
     // Credits people with rights to withdraw funds from the pool using a preset flight
     function pour(bytes32 flight, uint256 wad) external stoppable {
-        Flight memory _flight = flights[flight];
+        address gem = flights[flight].gem;
+        Pint[] memory pints = flights[flight].pints;
 
         require(wad > 0, "Keg/wad-zero");
-        require(_flight.pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
+        require(pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
 
         uint256 suds = 0;
-        for (uint256 i = 0; i < _flight.pints.length; i++) {
-            Pint memory pint = _flight.pints[i];
+        for (uint256 i = 0; i < pints.length; i++) {
+            Pint memory pint = pints[i];
             uint256 sud;
-            if (i != _flight.pints.length - 1) {
+            if (i != pints.length - 1) {
                 // Otherwise use the share amount
                 sud = mul(wad, pint.share) / WAD;
             } else {
@@ -133,7 +134,7 @@ contract Keg {
 
             emit Pour(pint.bum, sud);
 
-            require(GemAbstract(_flight.gem).transferFrom(msg.sender, address(pint.bum), sud), "Keg/transfer-failure");
+            require(GemAbstract(gem).transferFrom(msg.sender, address(pint.bum), sud), "Keg/transfer-failure");
         }
     }
 
