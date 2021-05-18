@@ -107,7 +107,7 @@ contract Keg {
 
     // --- External ---
 
-    // Credits people with rights to withdraw funds from the pool using a preset flight
+    // Sends out funds according to the pre-authorized flight
     function pour(bytes32 flight, uint256 wad) external stoppable {
         Pint[] memory pints = flights[flight];
 

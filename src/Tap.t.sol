@@ -261,7 +261,7 @@ contract TapTest is DSTest, DSMath {
         tap.pump();
     }
 
-    function testFail_pump_call_twice_same_block() public {
+    function test_pump_call_twice_same_block() public {
         hevm.warp(1 seconds);
         tap.pump();
         tap.pump();

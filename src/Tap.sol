@@ -100,13 +100,21 @@ contract Tap {
     }
 
     // --- External ---
+    function unpaid() external view returns (uint256) {
+        if (block.timestamp > rho) {
+            return mul(block.timestamp - rho, rate);
+        } else {
+            return 0;
+        }
+    }
     function pump() external stoppable {
-        require(block.timestamp > rho, "Tap/invalid-now");
-        uint256 wad = mul(block.timestamp - rho, rate);
-        rho = block.timestamp;
+        if (block.timestamp > rho) {
+            uint256 wad = mul(block.timestamp - rho, rate);
+            rho = block.timestamp;
 
-        vat.suck(address(vow), address(this), mul(wad, RAY));
-        daiJoin.exit(address(this), wad);
-        keg.pour(flight, wad);
+            vat.suck(address(vow), address(this), mul(wad, RAY));
+            daiJoin.exit(address(this), wad);
+            keg.pour(flight, wad);
+        }
     }
 }
