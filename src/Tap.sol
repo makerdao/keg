@@ -59,7 +59,6 @@ contract Tap {
     event File(bytes32 indexed what, bytes32 data);
     event File(bytes32 indexed what, uint256 data);
 
-
     // --- Init ---
     constructor(KegAbstract keg_, DaiJoinAbstract daiJoin_, address vow_, bytes32 flight_, uint256 rate_) public {
         wards[msg.sender] = 1;
