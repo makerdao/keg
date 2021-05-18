@@ -17,11 +17,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 pragma solidity ^0.6.12;
+pragma experimental ABIEncoderV2;
 
 import "dss-interfaces/ERC/GemAbstract.sol";
 
 // Preset ratio payout system for streaming payments
 contract Keg {
+
+    struct Flight {
+        address gem;
+        Pint[] pints;
+    }
 
     struct Pint {
         address bum;   // Who to pay
@@ -43,11 +49,8 @@ contract Keg {
     function start() external auth { stopped = 0; emit Start(); }
     modifier stoppable { require(stopped == 0, "Keg/is-stopped"); _; }
 
-    // --- Variable ---
-    GemAbstract public immutable token;
-
     // Define payout ratios
-    mapping (bytes32 => Pint[]) public flights;       // The Pint definitions
+    mapping (bytes32 => Flight) internal flights;       // The Flight definitions
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -59,8 +62,7 @@ contract Keg {
     event Revoke(bytes32 indexed flight);
 
     // --- Init ---
-    constructor(address token_) public {
-        token = GemAbstract(token_);
+    constructor() public {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
@@ -83,16 +85,18 @@ contract Keg {
     // --- Administration ---
 
     // Pre-authorize a flight distribution of funds
-    function seat(bytes32 flight, address[] calldata bums, uint256[] calldata shares) external auth {
+    function seat(bytes32 flight, address gem, address[] calldata bums, uint256[] calldata shares) external auth {
         require(bums.length == shares.length, "Keg/unequal-bums-and-shares");
         require(bums.length > 0, "Keg/zero-bums");
+        require(gem != address(0), "Keg/no-address-0");
 
         // Pint shares need to add up to 100%
         uint256 total = 0;
         for (uint256 i = 0; i < bums.length; i++) {
             require(bums[i] != address(0), "Keg/no-address-0");
             total = add(total, shares[i]);
-            flights[flight].push(Pint(bums[i], shares[i]));
+            flights[flight].gem = gem;
+            flights[flight].pints.push(Pint(bums[i], shares[i]));
         }
         require(total == WAD, "Keg/invalid-flight");
         emit Seat(flight);
@@ -100,7 +104,7 @@ contract Keg {
 
     // Deauthorize a flight
     function revoke(bytes32 flight) external auth {
-        require(flights[flight].length > 0, "Keg/flight-not-set");       // pints will be 0 when not set
+        require(flights[flight].gem != address(0), "Keg/flight-not-set");
         delete flights[flight];
         emit Revoke(flight);
     }
@@ -109,9 +113,10 @@ contract Keg {
 
     // Sends out funds according to the pre-authorized flight
     function pour(bytes32 flight, uint256 wad) external stoppable {
-        Pint[] memory pints = flights[flight];
+        address gem = flights[flight].gem;
+        Pint[] memory pints = flights[flight].pints;
 
-        require(pints.length > 0, "Keg/flight-not-set");       // pints will be empty when not set
+        require(gem != address(0), "Keg/flight-not-set");
 
         uint256 suds = 0;
         for (uint256 i = 0; i < pints.length; i++) {
@@ -119,7 +124,7 @@ contract Keg {
             uint256 sud;
             if (i != pints.length - 1) {
                 // Otherwise use the share amount
-                sud = mul(wad, pints[i].share) / WAD;
+                sud = mul(wad, pint.share) / WAD;
             } else {
                 // Add whatevers left over to the last mug to account for rounding errors
                 sud = sub(wad, suds);
@@ -128,9 +133,19 @@ contract Keg {
 
             emit Pour(pint.bum, sud);
 
-            require(token.transferFrom(msg.sender, address(pint.bum), sud), "Keg/transfer-failure");
+            require(GemAbstract(gem).transferFrom(msg.sender, address(pint.bum), sud), "Keg/transfer-failure");
         }
     }
 
+    // Flight lookups
+    function exists(bytes32 flight) external view returns (bool) {
+        return flights[flight].gem != address(0);
+    }
+    function gems(bytes32 flight) external view returns (address) {
+        return flights[flight].gem;
+    }
+    function pints(bytes32 flight) external view returns (Pint[] memory) {
+        return flights[flight].pints;
+    }
 
 }
