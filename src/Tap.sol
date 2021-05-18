@@ -48,8 +48,8 @@ contract Tap {
     DaiJoinAbstract public immutable daiJoin;
 
     bytes32 public flight;  // The target flight in keg
-    uint256 public rate;    // The per-second rate of distributing funds [wad]
-    uint256 public rho;     // Time of last pump [unix epoch time]
+    uint256 public rate;    // The rate of distributing funds [wad / second]
+    uint256 public rho;     // Time of last pump [seconds]
 
     uint256 constant RAY = 10 ** 27;
 
@@ -58,7 +58,6 @@ contract Tap {
     event Deny(address indexed usr);
     event File(bytes32 indexed what, bytes32 data);
     event File(bytes32 indexed what, uint256 data);
-
 
     // --- Init ---
     constructor(KegAbstract keg_, DaiJoinAbstract daiJoin_, address vow_, bytes32 flight_, uint256 rate_) public {
@@ -100,13 +99,21 @@ contract Tap {
     }
 
     // --- External ---
+    function unpaid() external view returns (uint256) {
+        if (block.timestamp > rho) {
+            return mul(block.timestamp - rho, rate);
+        } else {
+            return 0;
+        }
+    }
     function pump() external stoppable {
-        require(block.timestamp > rho, "Tap/invalid-now");
-        uint256 wad = mul(block.timestamp - rho, rate);
-        rho = block.timestamp;
+        if (block.timestamp > rho) {
+            uint256 wad = mul(block.timestamp - rho, rate);
+            rho = block.timestamp;
 
-        vat.suck(address(vow), address(this), mul(wad, RAY));
-        daiJoin.exit(address(this), wad);
-        keg.pour(flight, wad);
+            vat.suck(address(vow), address(this), mul(wad, RAY));
+            daiJoin.exit(address(this), wad);
+            keg.pour(flight, wad);
+        }
     }
 }

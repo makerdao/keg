@@ -322,7 +322,7 @@ contract KegTest is DSTest, DSMath {
         keg.pour(flight, 10 * WAD);
     }
 
-    function testFail_pour_flight_zero() public {
+    function test_pour_flight_zero() public {
         address[] memory users = new address[](2);
         users[0] = address(user1);
         users[1] = address(user2);
