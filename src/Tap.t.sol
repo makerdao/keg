@@ -267,7 +267,7 @@ contract TapTest is DSTest, DSMath {
         tap.pump();
     }
 
-    function testFail_pump_without_no_monies_to_send() public {
+    function test_pump_without_no_monies_to_send() public {
         tap.file("rate", uint256(0));
         hevm.warp(1 seconds);
         tap.pump();
